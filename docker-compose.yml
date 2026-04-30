@@ -138,6 +138,8 @@ services:
     depends_on:
       discovery-service:
         condition: service_healthy
+      auth-service:
+        condition: service_healthy
       inventory-service:
         condition: service_healthy
       order-service:
@@ -155,3 +157,14 @@ services:
       start_period: 45s
     ports:
       - "8080:8080"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: smartlogix/frontend:latest
+    depends_on:
+      - api-gateway
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
