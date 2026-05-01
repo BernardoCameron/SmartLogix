@@ -140,4 +140,8 @@ A continuación se presenta el paso a paso de lo construido para levantar la inf
    - Formularios para `Login` y `Registro`.
    - Modificación de la pantalla de `Crear Pedido` para que se conecte directamente al Inventory Service (haciendo un `GET`) y traiga los 3 productos de prueba iniciales (`SKU-1001`, `SKU-2001`, `SKU-3001`), forzando al usuario a elegir un producto real.
 
-
+### Fase 3: Seguridad Avanzada y Roles (RBAC)
+7. **Control de Acceso Basado en Roles (RBAC):** Se implementó un enum `Role` (`ROLE_USER`, `ROLE_ADMIN`, `ROLE_WAREHOUSE`) en el dominio de `auth-service` y se añadió a la entidad `User`. Esto permite distinguir de forma robusta los privilegios de cada cuenta.
+8. **Incrustación de Roles en JWT:** El generador de tokens (`JwtUtil`) se modificó para embeber el rol del usuario directamente en los *claims* del JWT. Así, cualquier microservicio puede validar autorizaciones sin consultar nuevamente a la base de datos.
+9. **Inicialización de Usuarios de Prueba (Seeding):** Se creó un script `AuthSeedConfig` que puebla la base de datos `authdb` con tres usuarios predeterminados (`admin@smartlogix.com`, `bodega@smartlogix.com` y `cliente@ejemplo.com`) al arrancar. Además, todo registro público (`/auth/register`) asigna automáticamente `ROLE_USER` por defecto.
+10. **Expiración de Tokens:** Se ajustó la configuración de `jwt.expiration` a 30 minutos (`1800000` milisegundos) en el `application.yml` para limitar el tiempo de vida de las sesiones y aumentar la seguridad.

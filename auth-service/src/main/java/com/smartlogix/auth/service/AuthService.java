@@ -25,6 +25,9 @@ public class AuthService {
         if (userRepository.findByUsername(user.getUsername()).isPresent()) {
             throw new RuntimeException("User already exists");
         }
+        if (user.getRole() == null) {
+            user.setRole(com.smartlogix.auth.domain.Role.ROLE_USER);
+        }
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         userRepository.save(user);
         return "User created successfully";
@@ -33,7 +36,7 @@ public class AuthService {
     public String verifyAndGenerateToken(String username, String password) {
         Optional<User> userOpt = userRepository.findByUsername(username);
         if (userOpt.isPresent() && passwordEncoder.matches(password, userOpt.get().getPassword())) {
-            return jwtUtil.generateToken(username);
+            return jwtUtil.generateToken(username, userOpt.get().getRole().name());
         }
         throw new RuntimeException("Invalid credentials");
     }
