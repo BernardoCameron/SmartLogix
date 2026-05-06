@@ -14,13 +14,15 @@ public class AuthSeedConfig {
     @Bean
     CommandLineRunner authSeeder(UserRepository repository, PasswordEncoder passwordEncoder) {
         return args -> {
-            if (repository.count() > 0) {
-                return;
+            if (repository.findByUsername("cliente@ejemplo.com").isEmpty()) {
+                repository.save(buildUser("cliente@ejemplo.com", "1234", Role.ROLE_USER, passwordEncoder));
             }
-
-            repository.save(buildUser("cliente@ejemplo.com", "1234", Role.ROLE_USER, passwordEncoder));
-            repository.save(buildUser("admin@smartlogix.com", "admin123", Role.ROLE_ADMIN, passwordEncoder));
-            repository.save(buildUser("bodega@smartlogix.com", "bodega123", Role.ROLE_WAREHOUSE, passwordEncoder));
+            if (repository.findByUsername("admin@smartlogix.com").isEmpty()) {
+                repository.save(buildUser("admin@smartlogix.com", "admin123", Role.ROLE_ADMIN, passwordEncoder));
+            }
+            if (repository.findByUsername("bodega@smartlogix.com").isEmpty()) {
+                repository.save(buildUser("bodega@smartlogix.com", "bodega123", Role.ROLE_WAREHOUSE, passwordEncoder));
+            }
         };
     }
 
