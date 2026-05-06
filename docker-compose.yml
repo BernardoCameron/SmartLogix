@@ -30,6 +30,48 @@ services:
       retries: 5
       start_period: 10s
 
+  rabbitmq:
+    image: rabbitmq:3-management
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  rabbitmq-service:
+    build:
+      context: .
+      dockerfile: rabbitmq-service/Dockerfile
+    image: smartlogix/rabbitmq-service:latest
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-service:8761/eureka/
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=${RABBITMQ_USER:-guest}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-guest}
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8085/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 35s
+    ports:
+      - "8085:8085"
+
   auth-service:
     build:
       context: .
@@ -116,11 +158,14 @@ services:
         condition: service_healthy
       shipment-service:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     restart: unless-stopped
     environment:
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-service:8761/eureka/
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
+      - RABBITMQ_HOST=rabbitmq
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8082/actuator/health"]
       interval: 15s

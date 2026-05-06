@@ -1,11 +1,7 @@
 package com.smartlogix.order.service;
 
-import com.smartlogix.order.client.InventoryAvailabilityResponse;
-import com.smartlogix.order.client.InventoryClient;
-import com.smartlogix.order.client.InventoryClientException;
-import com.smartlogix.order.client.ShipmentClient;
-import com.smartlogix.order.client.ShipmentRequest;
-import com.smartlogix.order.client.ShipmentResponse;
+import com.smartlogix.order.event.OrderCreatedEvent;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import com.smartlogix.order.domain.OrderLine;
 import com.smartlogix.order.domain.OrderStatus;
 import com.smartlogix.order.domain.PurchaseOrder;
@@ -26,63 +22,37 @@ import org.springframework.transaction.annotation.Transactional;
 public class OrderService {
 
     private final PurchaseOrderRepository repository;
-    private final InventoryClient inventoryClient;
-    private final ShipmentClient shipmentClient;
+    private final RabbitTemplate rabbitTemplate;
 
     public OrderService(
             PurchaseOrderRepository repository,
-            InventoryClient inventoryClient,
-            ShipmentClient shipmentClient
+            RabbitTemplate rabbitTemplate
     ) {
         this.repository = repository;
-        this.inventoryClient = inventoryClient;
-        this.shipmentClient = shipmentClient;
+        this.rabbitTemplate = rabbitTemplate;
     }
 
     public OrderResponse createOrder(CreateOrderRequest request) {
         PurchaseOrder order = buildOrder(request);
         repository.save(order);
 
-        for (OrderLine line : order.getLines()) {
-            InventoryAvailabilityResponse availability = inventoryClient.checkAvailability(line.getSku(), line.getQuantity());
-            if (availability == null || !availability.available()) {
-                order.setStatus(OrderStatus.REJECTED);
-                order.setRejectionReason("Stock insuficiente para SKU " + line.getSku());
-                repository.save(order);
-                return toResponse(order);
-            }
-        }
+        List<OrderCreatedEvent.OrderLineEvent> lineEvents = order.getLines().stream()
+                .map(line -> new OrderCreatedEvent.OrderLineEvent(line.getSku(), line.getQuantity()))
+                .toList();
 
-        List<OrderLine> reservedLines = new ArrayList<>();
-        for (OrderLine line : order.getLines()) {
-            try {
-                inventoryClient.reserve(line.getSku(), line.getQuantity());
-                reservedLines.add(line);
-            } catch (InventoryClientException ex) {
-                releaseReservedLines(reservedLines);
-                order.setStatus(OrderStatus.REJECTED);
-                order.setRejectionReason("No fue posible reservar inventario. " + ex.getMessage());
-                repository.save(order);
-                return toResponse(order);
-            }
-        }
-
-        order.setStatus(OrderStatus.APPROVED);
-
-        ShipmentResponse shipmentResponse = shipmentClient.requestShipment(
-                new ShipmentRequest(order.getOrderNumber(), order.getShippingAddress(), totalUnits(order))
+        OrderCreatedEvent event = new OrderCreatedEvent(
+                order.getOrderNumber(),
+                order.getCustomerEmail(),
+                order.getShippingAddress(),
+                lineEvents,
+                order.getTotalAmount()
         );
 
-        if (shipmentResponse == null || shipmentResponse.trackingCode() == null) {
-            order.setStatus(OrderStatus.FAILED);
-            order.setRejectionReason("Servicio de envios no disponible. Asignacion manual requerida.");
-            repository.save(order);
-            return toResponse(order);
-        }
-
-        order.setStatus(OrderStatus.SHIPMENT_REQUESTED);
-        order.setTrackingCode(shipmentResponse.trackingCode());
-        repository.save(order);
+        rabbitTemplate.convertAndSend(
+                com.smartlogix.order.config.RabbitMQConfig.EXCHANGE_NAME,
+                com.smartlogix.order.config.RabbitMQConfig.ROUTING_KEY,
+                event
+        );
 
         return toResponse(order);
     }
@@ -126,19 +96,7 @@ public class OrderService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    private int totalUnits(PurchaseOrder order) {
-        return order.getLines().stream().mapToInt(OrderLine::getQuantity).sum();
-    }
 
-    private void releaseReservedLines(List<OrderLine> reservedLines) {
-        for (OrderLine line : reservedLines) {
-            try {
-                inventoryClient.release(line.getSku(), line.getQuantity());
-            } catch (Exception ignored) {
-                // Si la liberacion falla, la orden queda rechazada y se audita por log externo.
-            }
-        }
-    }
 
     private OrderResponse toResponse(PurchaseOrder order) {
         List<OrderLineResponse> lines = order.getLines().stream()

@@ -145,3 +145,8 @@ A continuación se presenta el paso a paso de lo construido para levantar la inf
 8. **Incrustación de Roles en JWT:** El generador de tokens (`JwtUtil`) se modificó para embeber el rol del usuario directamente en los *claims* del JWT. Así, cualquier microservicio puede validar autorizaciones sin consultar nuevamente a la base de datos.
 9. **Inicialización de Usuarios de Prueba (Seeding):** Se creó un script `AuthSeedConfig` que puebla la base de datos `authdb` con tres usuarios predeterminados (`admin@smartlogix.com`, `bodega@smartlogix.com` y `cliente@ejemplo.com`) al arrancar. Además, todo registro público (`/auth/register`) asigna automáticamente `ROLE_USER` por defecto.
 10. **Expiración de Tokens:** Se ajustó la configuración de `jwt.expiration` a 30 minutos (`1800000` milisegundos) en el `application.yml` para limitar el tiempo de vida de las sesiones y aumentar la seguridad.
+
+### Fase 4: Integración de Mensajería Asíncrona (RabbitMQ)
+11. **Creación del RabbitMQ Service:** Se integró un nuevo módulo `rabbitmq-service` al proyecto padre. Este servicio servirá de puente para procesar colas y notificaciones.
+12. **Aislamiento del Broker:** Se agregó la imagen oficial de `rabbitmq:3-management` al `docker-compose.yml` para tener un broker de mensajería asíncrono con interfaz de gestión en el puerto `15672`.
+13. **Adaptación Multi-stage:** Se unificaron las dependencias (`spring-boot-starter-amqp`) y se creó un `Dockerfile` para el nuevo servicio siguiendo el estándar del resto de la plataforma.
