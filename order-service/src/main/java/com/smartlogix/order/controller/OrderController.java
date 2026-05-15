@@ -36,4 +36,11 @@ public class OrderController {
     public OrderResponse findByOrderNumber(@PathVariable String orderNumber) {
         return orderService.getOrderByNumber(orderNumber);
     }
+
+    @org.springframework.web.bind.annotation.PatchMapping("/{orderNumber}/status")
+    public OrderResponse updateOrderStatus(
+            @PathVariable String orderNumber,
+            @org.springframework.web.bind.annotation.RequestParam com.smartlogix.order.domain.OrderStatus value) {
+        return orderService.updateOrderStatus(orderNumber, value);
+    }
 }

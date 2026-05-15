@@ -1,4 +1,4 @@
-package com.smartlogix.order.config;
+package com.smartlogix.shipment.config;
 
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
@@ -12,9 +12,8 @@ import org.springframework.context.annotation.Configuration;
 public class RabbitMQConfig {
 
     public static final String EXCHANGE_NAME = "order.exchange";
-    public static final String QUEUE_NAME = "order.created.queue";
-    public static final String ROUTING_KEY = "order.created.key";
-    public static final String ROUTING_KEY_SHIPMENT = "order.shipment.request.key";
+    public static final String QUEUE_NAME = "shipment.request.queue";
+    public static final String ROUTING_KEY = "order.shipment.request.key";
 
     @Bean
     public DirectExchange orderExchange() {
@@ -22,13 +21,13 @@ public class RabbitMQConfig {
     }
 
     @Bean
-    public Queue orderCreatedQueue() {
+    public Queue shipmentRequestQueue() {
         return new Queue(QUEUE_NAME, true);
     }
 
     @Bean
-    public Binding binding(Queue orderCreatedQueue, DirectExchange orderExchange) {
-        return BindingBuilder.bind(orderCreatedQueue).to(orderExchange).with(ROUTING_KEY);
+    public Binding bindingShipmentRequest(Queue shipmentRequestQueue, DirectExchange orderExchange) {
+        return BindingBuilder.bind(shipmentRequestQueue).to(orderExchange).with(ROUTING_KEY);
     }
 
     @Bean

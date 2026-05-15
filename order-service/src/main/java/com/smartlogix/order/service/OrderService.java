@@ -1,6 +1,7 @@
 package com.smartlogix.order.service;
 
 import com.smartlogix.order.event.OrderCreatedEvent;
+import com.smartlogix.order.event.ShipmentRequestedEvent;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import com.smartlogix.order.domain.OrderLine;
 import com.smartlogix.order.domain.OrderStatus;
@@ -68,6 +69,34 @@ public class OrderService {
     public OrderResponse getOrderByNumber(String orderNumber) {
         PurchaseOrder order = repository.findByOrderNumber(orderNumber)
                 .orElseThrow(() -> new OrderNotFoundException("No existe la orden " + orderNumber));
+        return toResponse(order);
+    }
+
+    public OrderResponse updateOrderStatus(String orderNumber, OrderStatus status) {
+        PurchaseOrder order = repository.findByOrderNumber(orderNumber)
+                .orElseThrow(() -> new OrderNotFoundException("No existe la orden " + orderNumber));
+        
+        order.setStatus(status);
+        repository.save(order);
+
+        if (status == OrderStatus.SHIPMENT_REQUESTED) {
+            int totalUnits = order.getLines().stream()
+                    .mapToInt(com.smartlogix.order.domain.OrderLine::getQuantity)
+                    .sum();
+                    
+            ShipmentRequestedEvent event = new ShipmentRequestedEvent(
+                    order.getOrderNumber(),
+                    order.getShippingAddress(),
+                    totalUnits
+            );
+            
+            rabbitTemplate.convertAndSend(
+                    com.smartlogix.order.config.RabbitMQConfig.EXCHANGE_NAME,
+                    com.smartlogix.order.config.RabbitMQConfig.ROUTING_KEY_SHIPMENT,
+                    event
+            );
+        }
+
         return toResponse(order);
     }
 
