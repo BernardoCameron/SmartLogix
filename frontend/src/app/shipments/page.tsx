@@ -40,7 +40,7 @@ export default function ShipmentsPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Tracking Code</TableHead>
+                <TableHead>Código de Rastreo</TableHead>
                 <TableHead>N° Pedido</TableHead>
                 <TableHead>Transportista</TableHead>
                 <TableHead>Fecha Est. Entrega</TableHead>

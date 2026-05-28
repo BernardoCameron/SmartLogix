@@ -28,7 +28,15 @@ export default function ClientNavbar() {
           </Link>
         </div>
         <div>
-          <Link href="/" className="text-sm text-gray-500 hover:text-red-600 transition-colors font-medium">Cerrar Sesión</Link>
+          <button 
+            onClick={() => {
+              localStorage.removeItem("token");
+              window.location.href = "/";
+            }} 
+            className="text-sm text-gray-500 hover:text-red-600 transition-colors font-medium"
+          >
+            Cerrar Sesión
+          </button>
         </div>
       </div>
     </nav>

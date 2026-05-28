@@ -157,7 +157,7 @@ export default function CreateOrder() {
             </div>
           )}
           <div className="mt-6 text-center">
-            <Link href="/" className="text-sm text-blue-600 hover:underline">Volver al inicio</Link>
+            <Link href="/orders" className="text-sm text-blue-600 hover:underline">Volver a Mis Pedidos</Link>
           </div>
         </CardContent>
       </Card>

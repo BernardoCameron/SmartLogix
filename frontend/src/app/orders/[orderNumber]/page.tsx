@@ -84,7 +84,7 @@ export default function OrderDetailsPage() {
             </div>
             {order.trackingCode && (
               <div>
-                <p className="text-sm text-gray-500">Tracking Code (Si aplica)</p>
+                <p className="text-sm text-gray-500">Código de Rastreo (Si aplica)</p>
                 <p className="font-medium">{order.trackingCode}</p>
               </div>
             )}
