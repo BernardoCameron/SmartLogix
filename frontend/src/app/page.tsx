@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
+import { AuthService } from "@/services/auth.service";
+
 export default function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -17,23 +19,10 @@ export default function Login() {
     e.preventDefault();
     setError(null);
     try {
-      const res = await fetch("http://localhost:8080/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password })
-      });
-      if (res.ok) {
-        const token = await res.text();
-        localStorage.setItem("token", token);
-        // Usar window.location.href en lugar de router.push 
-        // garantiza que toda la app (incluido AuthProvider) se recargue con el nuevo token.
-        window.location.href = "/orders/new";
-      } else {
-        const err = await res.text();
-        setError(`Error: ${err}`);
-      }
+      await AuthService.login({ username, password });
+      window.location.href = "/orders/new";
     } catch (err: any) {
-      setError(`Error de red: ${err.message}`);
+      setError(`Error: ${err.message}`);
     }
   };
 

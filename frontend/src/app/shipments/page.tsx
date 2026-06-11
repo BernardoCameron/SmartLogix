@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
+import { ShipmentsService } from "@/services/shipments.service"
 
 type ShipmentResponse = {
   trackingCode: string
@@ -21,8 +22,7 @@ export default function ShipmentsPage() {
   const [shipments, setShipments] = useState<ShipmentResponse[]>([])
 
   useEffect(() => {
-    fetch("http://localhost:8080/api/shipments")
-      .then((res) => res.json())
+    ShipmentsService.getAllShipments()
       .then((data) => setShipments(data))
       .catch((err) => console.error(err))
   }, [])

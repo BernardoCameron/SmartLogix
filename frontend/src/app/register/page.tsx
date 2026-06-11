@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { AuthService } from "@/services/auth.service";
+
 export default function Register() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -19,23 +21,13 @@ export default function Register() {
     setResult(null);
     setError(null);
     try {
-      const res = await fetch("http://localhost:8080/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password })
-      });
-      if (res.ok) {
-        const msg = await res.text();
-        setResult(`Registro Exitoso. Redirigiendo...`);
-        setTimeout(() => {
-          router.push('/');
-        }, 2000);
-      } else {
-        const err = await res.text();
-        setError(`Error: ${err}`);
-      }
+      await AuthService.register({ username, password });
+      setResult(`Registro Exitoso. Redirigiendo...`);
+      setTimeout(() => {
+        router.push('/');
+      }, 2000);
     } catch (err: any) {
-      setError(`Error de red: ${err.message}`);
+      setError(`Error: ${err.message}`);
     }
   };
 

@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 import { Button, buttonVariants } from "@/components/ui/button"
+import { OrdersService } from "@/services/orders.service"
 
 type OrderResponse = {
   orderNumber: string
@@ -18,11 +19,13 @@ type OrderResponse = {
 export default function OrdersPage() {
   const [orders, setOrders] = useState<OrderResponse[]>([])
 
-  const fetchOrders = () => {
-    fetch("http://localhost:8080/api/orders")
-      .then((res) => res.json())
-      .then((data) => setOrders(data))
-      .catch((err) => console.error(err))
+  const fetchOrders = async () => {
+    try {
+      const data = await OrdersService.getAllOrders()
+      setOrders(data)
+    } catch (err) {
+      console.error(err)
+    }
   }
 
   useEffect(() => {
@@ -31,12 +34,8 @@ export default function OrdersPage() {
 
   const handleUpdateStatus = async (orderNumber: string, status: string) => {
     try {
-      const res = await fetch(`http://localhost:8080/api/orders/${orderNumber}/status?value=${status}`, {
-        method: "PATCH"
-      })
-      if (res.ok) {
-        fetchOrders()
-      }
+      await OrdersService.updateOrderStatus(orderNumber, status)
+      fetchOrders()
     } catch (err) {
       console.error("Error al actualizar", err)
     }

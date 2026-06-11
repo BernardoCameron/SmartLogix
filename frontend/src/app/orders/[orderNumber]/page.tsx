@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import Link from "next/link"
+import { OrdersService } from "@/services/orders.service"
 
 type OrderLineResponse = {
   sku: string
@@ -33,21 +34,20 @@ export default function OrderDetailsPage() {
     fetchOrder()
   }, [orderNumber])
 
-  const fetchOrder = () => {
-    fetch(`http://localhost:8080/api/orders/${orderNumber}`)
-      .then((res) => res.json())
-      .then((data) => setOrder(data))
-      .catch((err) => console.error(err))
+  const fetchOrder = async () => {
+    if (!orderNumber) return;
+    try {
+      const data = await OrdersService.getOrderById(orderNumber as string)
+      setOrder(data)
+    } catch (err) {
+      console.error(err)
+    }
   }
 
   const handleUpdateStatus = async (status: string) => {
     try {
-      const res = await fetch(`http://localhost:8080/api/orders/${orderNumber}/status?value=${status}`, {
-        method: "PATCH"
-      })
-      if (res.ok) {
-        fetchOrder()
-      }
+      await OrdersService.updateOrderStatus(orderNumber as string, status)
+      fetchOrder()
     } catch (err) {
       console.error("Error al actualizar", err)
     }

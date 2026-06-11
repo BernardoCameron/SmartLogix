@@ -13,18 +13,18 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     const isAuthRoute = pathname === "/" || pathname === "/register";
 
     if (!token && !isAuthRoute) {
-      // Not logged in and trying to access a protected route
+      // no logueado intentando entrar a ruta protegida
       window.location.href = "/";
     } else if (token && isAuthRoute) {
-      // Logged in and trying to access login/register
+      // logueado intentando entrar a login o registro
       router.push("/orders/new");
     } else {
       setIsChecking(false);
     }
   }, [pathname, router]);
 
-  // Si aún está comprobando y no es ruta pública, mejor no renderizar nada 
-  // para evitar pantallazos de rutas protegidas
+  // si esta comprobando no renderizar nada
+  // para evitar mostrar rutas protegidas
   if (isChecking) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">

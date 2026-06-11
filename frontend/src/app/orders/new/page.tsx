@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
+import { OrdersService } from "@/services/orders.service";
+import { InventoryService } from "@/services/inventory.service";
 
 interface InventoryItem {
   sku: string;
@@ -23,9 +25,8 @@ export default function CreateOrder() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Fetch test inventory data on load
-    fetch("http://localhost:8080/api/inventory/items")
-      .then(res => res.json())
+    // cargar datos de inventario
+    InventoryService.getAllItems()
       .then(data => {
         setInventoryItems(data);
         if (data.length > 0) {
@@ -47,25 +48,15 @@ export default function CreateOrder() {
       lines: [
         {
           sku: selectedSku,
-          quantity: 1, // hardcoded to 1 for simplicity
+          quantity: 1, // fijo en 1 por ahora
           unitPrice: 15.50
         }
       ]
     };
 
     try {
-      const res = await fetch("http://localhost:8080/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setResult(data);
-      } else {
-        const err = await res.text();
-        setError(`Error: ${err}`);
-      }
+      const data = await OrdersService.createOrder(payload);
+      setResult(data);
     } catch (err: any) {
       setError(`Network error: ${err.message}`);
     }
@@ -74,7 +65,7 @@ export default function CreateOrder() {
   return (
     <main className="min-h-screen flex flex-col items-center p-8 bg-slate-50 gap-6">
       
-      {/* Visualización de Inventario (Datos de Prueba) */}
+      {/* tabla de inventario */}
       <Card className="w-full max-w-2xl shadow-sm border border-gray-200">
         <CardHeader>
           <CardTitle className="text-xl">Inventario Disponible</CardTitle>
