@@ -9,6 +9,23 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import Link from "next/link"
 import { OrdersService } from "@/services/orders.service"
 import { AuthService } from "@/services/auth.service"
+import { InventoryService } from "@/services/inventory.service"
+import { StarRating } from "@/components/StarRating"
+
+const RATED_KEY = "smartlogix_rated"
+
+function getRatedSkus(): Record<string, number> {
+  try {
+    const raw = localStorage.getItem(RATED_KEY)
+    return raw ? JSON.parse(raw) : {}
+  } catch { return {} }
+}
+
+function saveRating(sku: string, value: number) {
+  const current = getRatedSkus()
+  current[sku] = value
+  localStorage.setItem(RATED_KEY, JSON.stringify(current))
+}
 
 type OrderLine = {
   sku: string
@@ -40,7 +57,14 @@ const STATUS_LABEL: Record<string, string> = {
 export default function OrderDetailPage() {
   const { orderNumber } = useParams()
   const [order, setOrder] = useState<Order | null>(null)
+  const [ratedSkus, setRatedSkus] = useState<Record<string, number>>({})
+  const [lineRatings, setLineRatings] = useState<Record<string, number>>({})
+  const [submitting, setSubmitting] = useState<string | null>(null)
   const isAdminOrWarehouse = AuthService.isAdminOrWarehouse()
+
+  useEffect(() => {
+    setRatedSkus(getRatedSkus())
+  }, [])
 
   const fetchOrder = async () => {
     if (!orderNumber) return
@@ -62,6 +86,21 @@ export default function OrderDetailPage() {
       fetchOrder()
     } catch (err) {
       console.error(err)
+    }
+  }
+
+  const handleRating = async (sku: string) => {
+    const value = lineRatings[sku]
+    if (!value) return
+    setSubmitting(sku)
+    try {
+      await InventoryService.addRating(sku, value)
+      saveRating(sku, value)
+      setRatedSkus(getRatedSkus())
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setSubmitting(null)
     }
   }
 
@@ -177,6 +216,49 @@ export default function OrderDetailPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* calificar productos: solo cuando el pedido ya fue enviado */}
+      {order.status === "SHIPMENT_REQUESTED" && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm">Califica los productos</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {order.lines.map((line) => {
+              const rated = ratedSkus[line.sku]
+              return (
+                <div key={line.sku} className="flex items-center justify-between py-2 border-b last:border-0">
+                  <p className="text-sm font-mono text-muted-foreground">{line.sku}</p>
+                  {rated ? (
+                    <div className="flex items-center gap-2">
+                      <StarRating value={rated} readonly size="sm" />
+                      <span className="text-xs text-muted-foreground">Ya calificado</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <StarRating
+                        value={lineRatings[line.sku] ?? 0}
+                        size="sm"
+                        onChange={(val) =>
+                          setLineRatings((prev) => ({ ...prev, [line.sku]: val }))
+                        }
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={!lineRatings[line.sku] || submitting === line.sku}
+                        onClick={() => handleRating(line.sku)}
+                      >
+                        {submitting === line.sku ? "..." : "Enviar"}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </CardContent>
+        </Card>
+      )}
     </main>
   )
 }

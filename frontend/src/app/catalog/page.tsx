@@ -7,6 +7,24 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { InventoryService } from "@/services/inventory.service";
 import { CartService } from "@/services/cart.service";
+import { StarRating } from "@/components/StarRating";
+
+const RATED_KEY = "smartlogix_rated";
+
+function getRatedSkus(): Record<string, number> {
+  try {
+    const raw = localStorage.getItem(RATED_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveRating(sku: string, value: number) {
+  const current = getRatedSkus();
+  current[sku] = value;
+  localStorage.setItem(RATED_KEY, JSON.stringify(current));
+}
 
 type Product = {
   sku: string;
@@ -26,21 +44,16 @@ export default function CatalogPage() {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("Todos");
   const [loading, setLoading] = useState(true);
-  // guarda el sku del ultimo producto agregado para mostrar feedback
   const [added, setAdded] = useState<string | null>(null);
 
-  const handleAddToCart = (product: Product) => {
-    CartService.addItem({
-      sku: product.sku,
-      productName: product.productName,
-      price: product.price,
-      imageUrl: product.imageUrl,
-    });
-    setAdded(product.sku);
-    setTimeout(() => setAdded(null), 1500);
-  };
+  // modal de calificacion
+  const [ratingModal, setRatingModal] = useState<Product | null>(null);
+  const [pendingRating, setPendingRating] = useState(0);
+  const [submittingRating, setSubmittingRating] = useState(false);
+  const [ratedSkus, setRatedSkus] = useState<Record<string, number>>({});
 
   useEffect(() => {
+    setRatedSkus(getRatedSkus());
     InventoryService.getCatalog()
       .then((data) => {
         setProducts(data);
@@ -50,7 +63,6 @@ export default function CatalogPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  // filtrar por busqueda y categoria
   useEffect(() => {
     let result = products;
     if (search) {
@@ -64,21 +76,60 @@ export default function CatalogPage() {
     setFiltered(result);
   }, [search, categoryFilter, products]);
 
-  const categories = ["Todos", ...Array.from(new Set(products.map((p) => p.category).filter(Boolean)))];
+  const categories = [
+    "Todos",
+    ...Array.from(new Set(products.map((p) => p.category).filter(Boolean))),
+  ];
 
-  const renderStars = (avg: number) => {
-    const full = Math.round(avg);
-    return Array.from({ length: 5 }, (_, i) => (
-      <span key={i} className={i < full ? "text-yellow-400" : "text-muted-foreground/30"}>
-        &#9733;
-      </span>
-    ));
+  const handleAddToCart = (product: Product) => {
+    CartService.addItem({
+      sku: product.sku,
+      productName: product.productName,
+      price: product.price,
+      imageUrl: product.imageUrl,
+    });
+    setAdded(product.sku);
+    setTimeout(() => setAdded(null), 1500);
+  };
+
+  const openRating = (product: Product) => {
+    setPendingRating(ratedSkus[product.sku] ?? 0);
+    setRatingModal(product);
+  };
+
+  const submitRating = async () => {
+    if (!ratingModal || pendingRating === 0) return;
+    setSubmittingRating(true);
+    try {
+      await InventoryService.addRating(ratingModal.sku, pendingRating);
+      saveRating(ratingModal.sku, pendingRating);
+      setRatedSkus(getRatedSkus());
+      // actualizar el promedio localmente para no recargar todo
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.sku === ratingModal.sku
+            ? {
+                ...p,
+                averageRating:
+                  (p.averageRating * p.ratingCount + pendingRating) /
+                  (p.ratingCount + 1),
+                ratingCount: p.ratingCount + 1,
+              }
+            : p
+        )
+      );
+      setRatingModal(null);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSubmittingRating(false);
+    }
   };
 
   if (loading) {
     return (
       <main className="container mx-auto py-10 px-4">
-        <p className="text-muted-foreground">Cargando productos...</p>
+        <p className="text-muted-foreground text-sm">Cargando productos...</p>
       </main>
     );
   }
@@ -87,7 +138,9 @@ export default function CatalogPage() {
     <main className="container mx-auto py-8 px-4">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-foreground mb-1">Catalogo</h1>
-        <p className="text-muted-foreground text-sm">{filtered.length} productos disponibles</p>
+        <p className="text-muted-foreground text-sm">
+          {filtered.length} productos disponibles
+        </p>
       </div>
 
       {/* filtros */}
@@ -112,66 +165,138 @@ export default function CatalogPage() {
         </div>
       </div>
 
+      {/* grid de productos */}
       {filtered.length === 0 ? (
         <p className="text-muted-foreground text-sm">No se encontraron productos.</p>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {filtered.map((product) => (
-            <Card key={product.sku} className="flex flex-col overflow-hidden">
-              {/* imagen */}
-              <div className="bg-muted h-44 flex items-center justify-center overflow-hidden">
-                {product.imageUrl ? (
-                  <img
-                    src={product.imageUrl}
-                    alt={product.productName}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <span className="text-muted-foreground text-sm">Sin imagen</span>
-                )}
-              </div>
-
-              <CardContent className="pt-4 flex-1 space-y-2">
-                {product.category && (
-                  <Badge variant="secondary" className="text-xs">{product.category}</Badge>
-                )}
-                <h3 className="font-medium text-sm text-foreground leading-tight">
-                  {product.productName}
-                </h3>
-                {product.description && (
-                  <p className="text-xs text-muted-foreground line-clamp-2">{product.description}</p>
-                )}
-                <div className="flex items-center gap-1 text-sm">
-                  {renderStars(product.averageRating)}
-                  <span className="text-xs text-muted-foreground ml-1">
-                    ({product.ratingCount})
-                  </span>
+          {filtered.map((product) => {
+            const myRating = ratedSkus[product.sku];
+            return (
+              <Card key={product.sku} className="flex flex-col overflow-hidden">
+                {/* imagen */}
+                <div className="bg-muted h-44 flex items-center justify-center overflow-hidden">
+                  {product.imageUrl ? (
+                    <img
+                      src={product.imageUrl}
+                      alt={product.productName}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-muted-foreground text-sm">Sin imagen</span>
+                  )}
                 </div>
-                <p className="text-foreground font-semibold text-sm">
-                  ${Number(product.price).toFixed(2)}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Stock: {product.availableQuantity} unidades
-                </p>
-              </CardContent>
 
-              <CardFooter className="pt-0 pb-4">
-                <Button
-                  className="w-full"
-                  size="sm"
-                  variant={added === product.sku ? "secondary" : "default"}
-                  disabled={product.availableQuantity === 0}
-                  onClick={() => handleAddToCart(product)}
-                >
-                  {product.availableQuantity === 0
-                    ? "Sin stock"
-                    : added === product.sku
-                    ? "Agregado"
-                    : "Agregar al carrito"}
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
+                <CardContent className="pt-4 flex-1 space-y-2">
+                  {product.category && (
+                    <Badge variant="secondary" className="text-xs">
+                      {product.category}
+                    </Badge>
+                  )}
+                  <h3 className="font-medium text-sm text-foreground leading-tight">
+                    {product.productName}
+                  </h3>
+                  {product.description && (
+                    <p className="text-xs text-muted-foreground line-clamp-2">
+                      {product.description}
+                    </p>
+                  )}
+
+                  {/* estrellas promedio + boton calificar */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1">
+                      <StarRating
+                        value={Math.round(product.averageRating)}
+                        readonly
+                        size="sm"
+                      />
+                      <span className="text-xs text-muted-foreground">
+                        ({product.ratingCount})
+                      </span>
+                    </div>
+                    {myRating ? (
+                      <span className="text-xs text-muted-foreground">
+                        Tu nota: {myRating}
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => openRating(product)}
+                        className="text-xs text-muted-foreground hover:text-foreground underline transition-colors"
+                      >
+                        Calificar
+                      </button>
+                    )}
+                  </div>
+
+                  <p className="text-foreground font-semibold text-sm">
+                    ${Number(product.price).toFixed(2)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Stock: {product.availableQuantity} unidades
+                  </p>
+                </CardContent>
+
+                <CardFooter className="pt-0 pb-4">
+                  <Button
+                    className="w-full"
+                    size="sm"
+                    variant={added === product.sku ? "secondary" : "default"}
+                    disabled={product.availableQuantity === 0}
+                    onClick={() => handleAddToCart(product)}
+                  >
+                    {product.availableQuantity === 0
+                      ? "Sin stock"
+                      : added === product.sku
+                      ? "Agregado"
+                      : "Agregar al carrito"}
+                  </Button>
+                </CardFooter>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* modal de calificacion */}
+      {ratingModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-card border rounded-xl shadow-lg p-6 w-full max-w-sm space-y-4">
+            <h2 className="text-base font-semibold text-foreground">
+              Calificar producto
+            </h2>
+            <p className="text-sm text-muted-foreground">{ratingModal.productName}</p>
+
+            <div className="flex justify-center py-2">
+              <StarRating
+                value={pendingRating}
+                onChange={setPendingRating}
+                size="md"
+              />
+            </div>
+
+            {pendingRating > 0 && (
+              <p className="text-center text-xs text-muted-foreground">
+                {["", "Muy malo", "Malo", "Regular", "Bueno", "Excelente"][pendingRating]}
+              </p>
+            )}
+
+            <div className="flex gap-2 pt-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setRatingModal(null)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                className="flex-1"
+                disabled={pendingRating === 0 || submittingRating}
+                onClick={submitRating}
+              >
+                {submittingRating ? "Enviando..." : "Enviar"}
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </main>
