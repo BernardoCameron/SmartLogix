@@ -74,6 +74,12 @@ export default function ClientNavbar() {
               Dashboard
             </Link>
           )}
+          {/* warehouse ve su propio dashboard de productos */}
+          {!isAdmin && AuthService.isWarehouse() && (
+            <Link href="/admin/dashboard/warehouse" className={linkClass("/admin/dashboard/warehouse")}>
+              Dashboard
+            </Link>
+          )}
         </div>
 
         <div className="flex items-center gap-4">
