@@ -1,41 +1,49 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import Link from "next/link"
 import { OrdersService } from "@/services/orders.service"
+import { AuthService } from "@/services/auth.service"
 
-type OrderLineResponse = {
+type OrderLine = {
   sku: string
   quantity: number
   unitPrice: number
   subtotal: number
 }
 
-type OrderResponse = {
+type Order = {
   orderNumber: string
+  customerName: string
+  customerEmail: string
+  shippingAddress: string
   status: string
   totalAmount: number
   trackingCode: string | null
   createdAt: string
-  lines: OrderLineResponse[]
+  lines: OrderLine[]
 }
 
-export default function OrderDetailsPage() {
-  const { orderNumber } = useParams()
-  const router = useRouter()
-  const [order, setOrder] = useState<OrderResponse | null>(null)
+const STATUS_LABEL: Record<string, string> = {
+  PENDING: "Pendiente",
+  APPROVED: "Aprobado",
+  REJECTED: "Rechazado",
+  SHIPMENT_REQUESTED: "En despacho",
+  FAILED: "Fallido",
+}
 
-  useEffect(() => {
-    fetchOrder()
-  }, [orderNumber])
+export default function OrderDetailPage() {
+  const { orderNumber } = useParams()
+  const [order, setOrder] = useState<Order | null>(null)
+  const isAdminOrWarehouse = AuthService.isAdminOrWarehouse()
 
   const fetchOrder = async () => {
-    if (!orderNumber) return;
+    if (!orderNumber) return
     try {
       const data = await OrdersService.getOrderById(orderNumber as string)
       setOrder(data)
@@ -44,93 +52,128 @@ export default function OrderDetailsPage() {
     }
   }
 
-  const handleUpdateStatus = async (status: string) => {
+  useEffect(() => {
+    fetchOrder()
+  }, [orderNumber])
+
+  const handleStatus = async (status: string) => {
     try {
       await OrdersService.updateOrderStatus(orderNumber as string, status)
       fetchOrder()
     } catch (err) {
-      console.error("Error al actualizar", err)
+      console.error(err)
     }
   }
 
-  if (!order) return <div className="p-10 text-center">Cargando...</div>
+  if (!order) {
+    return <div className="container mx-auto py-10 px-4 text-muted-foreground text-sm">Cargando...</div>
+  }
 
   return (
-    <main className="container mx-auto py-10 px-4 max-w-4xl">
+    <main className="container mx-auto py-8 px-4 max-w-3xl space-y-4">
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold text-foreground">Pedido {order.orderNumber}</h1>
+        <Link href="/orders">
+          <Button variant="outline" size="sm">Volver</Button>
+        </Link>
+      </div>
+
+      {/* datos del pedido */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Detalle de Pedido: {order.orderNumber}</CardTitle>
-          <div className="space-x-2">
-            <Link href="/orders">
-              <Button variant="outline">Volver</Button>
-            </Link>
-          </div>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm">Informacion del pedido</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm text-gray-500">Estado</p>
-              <Badge className="mt-1" variant={order.status === 'PENDING' ? 'secondary' : order.status === 'APPROVED' ? 'default' : 'outline'}>
-                {order.status}
-              </Badge>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Fecha de Creación</p>
-              <p className="font-medium">{new Date(order.createdAt).toLocaleString()}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Total</p>
-              <p className="font-medium text-lg">${order.totalAmount.toFixed(2)}</p>
-            </div>
-            {order.trackingCode && (
-              <div>
-                <p className="text-sm text-gray-500">Código de Rastreo (Si aplica)</p>
-                <p className="font-medium">{order.trackingCode}</p>
-              </div>
-            )}
-          </div>
-
-          <div className="bg-gray-50 p-4 rounded-lg flex items-center justify-between">
-            <p className="font-medium">Acciones de Operación</p>
-            <div className="space-x-2">
-              {order.status === "PENDING" && (
-                <Button onClick={() => handleUpdateStatus("APPROVED")} variant="default">
-                  Marcar como listo
-                </Button>
-              )}
-              {order.status === "APPROVED" && (
-                <Button onClick={() => handleUpdateStatus("SHIPMENT_REQUESTED")} variant="destructive">
-                  Realizar envío a Despacho
-                </Button>
-              )}
-              {order.status === "SHIPMENT_REQUESTED" && (
-                <p className="text-sm text-green-600 font-medium">Envío en proceso...</p>
-              )}
-            </div>
-          </div>
-
+        <CardContent className="grid grid-cols-2 gap-4 text-sm">
           <div>
-            <h3 className="font-semibold mb-3">Líneas de Pedido</h3>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>SKU</TableHead>
-                  <TableHead>Cantidad</TableHead>
-                  <TableHead>Precio Unitario</TableHead>
-                  <TableHead>Subtotal</TableHead>
+            <p className="text-muted-foreground text-xs mb-1">Estado</p>
+            <Badge variant={order.status === "APPROVED" ? "default" : "secondary"}>
+              {STATUS_LABEL[order.status] ?? order.status}
+            </Badge>
+          </div>
+          <div>
+            <p className="text-muted-foreground text-xs mb-1">Fecha</p>
+            <p>{new Date(order.createdAt).toLocaleString()}</p>
+          </div>
+          <div>
+            <p className="text-muted-foreground text-xs mb-1">Cliente</p>
+            <p>{order.customerName}</p>
+          </div>
+          <div>
+            <p className="text-muted-foreground text-xs mb-1">Email</p>
+            <p>{order.customerEmail}</p>
+          </div>
+          <div>
+            <p className="text-muted-foreground text-xs mb-1">Direccion</p>
+            <p>{order.shippingAddress}</p>
+          </div>
+          {order.trackingCode && (
+            <div>
+              <p className="text-muted-foreground text-xs mb-1">Tracking</p>
+              <p className="font-mono text-xs">{order.trackingCode}</p>
+            </div>
+          )}
+          <div>
+            <p className="text-muted-foreground text-xs mb-1">Total</p>
+            <p className="font-semibold">${order.totalAmount.toFixed(2)}</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* acciones de operacion solo para admin/warehouse */}
+      {isAdminOrWarehouse && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm">Acciones de operacion</CardTitle>
+          </CardHeader>
+          <CardContent className="flex gap-2">
+            {order.status === "PENDING" && (
+              <Button size="sm" onClick={() => handleStatus("APPROVED")}>
+                Aprobar pedido
+              </Button>
+            )}
+            {order.status === "APPROVED" && (
+              <Button size="sm" variant="outline" onClick={() => handleStatus("SHIPMENT_REQUESTED")}>
+                Enviar a despacho
+              </Button>
+            )}
+            {order.status === "SHIPMENT_REQUESTED" && (
+              <p className="text-sm text-muted-foreground">Pedido en proceso de despacho.</p>
+            )}
+            {(order.status === "REJECTED" || order.status === "FAILED") && (
+              <p className="text-sm text-destructive">Este pedido fue {STATUS_LABEL[order.status]?.toLowerCase()}.</p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* lineas del pedido */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm">Productos</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>SKU</TableHead>
+                <TableHead>Cantidad</TableHead>
+                <TableHead>Precio unit.</TableHead>
+                <TableHead className="text-right">Subtotal</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {order.lines.map((line, idx) => (
+                <TableRow key={idx}>
+                  <TableCell className="font-mono text-xs">{line.sku}</TableCell>
+                  <TableCell>{line.quantity}</TableCell>
+                  <TableCell>${line.unitPrice.toFixed(2)}</TableCell>
+                  <TableCell className="text-right">${line.subtotal.toFixed(2)}</TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {order.lines.map((line, idx) => (
-                  <TableRow key={idx}>
-                    <TableCell className="font-medium">{line.sku}</TableCell>
-                    <TableCell>{line.quantity}</TableCell>
-                    <TableCell>${line.unitPrice.toFixed(2)}</TableCell>
-                    <TableCell>${line.subtotal.toFixed(2)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+              ))}
+            </TableBody>
+          </Table>
+          <div className="flex justify-end mt-3 border-t pt-3">
+            <p className="text-sm font-semibold">Total: ${order.totalAmount.toFixed(2)}</p>
           </div>
         </CardContent>
       </Card>
