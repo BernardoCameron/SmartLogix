@@ -29,10 +29,17 @@ public class InventoryService {
         InventoryItem item = new InventoryItem();
         item.setSku(request.sku().trim().toUpperCase());
         item.setProductName(request.productName().trim());
+        item.setDescription(request.description());
+        item.setCategory(request.category());
+        item.setPrice(request.price());
+        item.setImageUrl(request.imageUrl());
         item.setWarehouseCode(request.warehouseCode().trim().toUpperCase());
         item.setAvailableQuantity(request.initialQuantity());
         item.setReservedQuantity(0);
         item.setReorderLevel(request.reorderLevel());
+        item.setAverageRating(0.0);
+        item.setRatingCount(0);
+        item.setActive(true);
 
         return toResponse(repository.save(item));
     }
@@ -44,10 +51,18 @@ public class InventoryService {
                 .toList();
     }
 
+    // solo productos activos para el catalogo publico
+    @Transactional(readOnly = true)
+    public List<InventoryItemResponse> findAllActive() {
+        return repository.findAll().stream()
+                .filter(InventoryItem::isActive)
+                .map(this::toResponse)
+                .toList();
+    }
+
     @Transactional(readOnly = true)
     public InventoryItemResponse findBySku(String sku) {
-        InventoryItem item = loadBySku(sku);
-        return toResponse(item);
+        return toResponse(loadBySku(sku));
     }
 
     @Transactional(readOnly = true)
@@ -71,10 +86,8 @@ public class InventoryService {
             throw new InventoryOperationException(
                     "Stock insuficiente para SKU " + sku + ". Disponible: " + item.getAvailableQuantity());
         }
-
         item.setAvailableQuantity(item.getAvailableQuantity() - quantity);
         item.setReservedQuantity(item.getReservedQuantity() + quantity);
-
         return toResponse(repository.save(item));
     }
 
@@ -87,10 +100,8 @@ public class InventoryService {
             throw new InventoryOperationException(
                     "No hay suficiente stock reservado para liberar en SKU " + sku);
         }
-
         item.setReservedQuantity(item.getReservedQuantity() - quantity);
         item.setAvailableQuantity(item.getAvailableQuantity() + quantity);
-
         return toResponse(repository.save(item));
     }
 
@@ -103,8 +114,27 @@ public class InventoryService {
             throw new InventoryOperationException(
                     "No hay stock reservado suficiente para despachar SKU " + sku);
         }
-
         item.setReservedQuantity(item.getReservedQuantity() - quantity);
+        return toResponse(repository.save(item));
+    }
+
+    // actualiza calificacion promedio al agregar una nueva
+    public InventoryItemResponse addRating(String sku, int rating) {
+        if (rating < 1 || rating > 5) {
+            throw new InventoryOperationException("La calificacion debe ser entre 1 y 5.");
+        }
+        InventoryItem item = loadBySku(sku);
+        double newAverage = ((item.getAverageRating() * item.getRatingCount()) + rating)
+                / (item.getRatingCount() + 1);
+        item.setAverageRating(newAverage);
+        item.setRatingCount(item.getRatingCount() + 1);
+        return toResponse(repository.save(item));
+    }
+
+    // activa o desactiva un producto
+    public InventoryItemResponse setActive(String sku, boolean active) {
+        InventoryItem item = loadBySku(sku);
+        item.setActive(active);
         return toResponse(repository.save(item));
     }
 
@@ -117,10 +147,17 @@ public class InventoryService {
         return new InventoryItemResponse(
                 item.getSku(),
                 item.getProductName(),
+                item.getDescription(),
+                item.getCategory(),
+                item.getPrice(),
+                item.getImageUrl(),
                 item.getWarehouseCode(),
                 item.getAvailableQuantity(),
                 item.getReservedQuantity(),
                 item.getReorderLevel(),
+                item.getAverageRating(),
+                item.getRatingCount(),
+                item.isActive(),
                 item.getUpdatedAt()
         );
     }

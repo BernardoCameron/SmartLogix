@@ -28,14 +28,22 @@ public class InventoryController {
         this.inventoryService = inventoryService;
     }
 
+    // crear producto (admin/warehouse)
     @PostMapping("/items")
     public InventoryItemResponse create(@Valid @RequestBody CreateInventoryItemRequest request) {
         return inventoryService.createItem(request);
     }
 
+    // listar todos (admin/warehouse ven todo, incluyendo inactivos)
     @GetMapping("/items")
     public List<InventoryItemResponse> list() {
         return inventoryService.findAll();
+    }
+
+    // catalogo publico: solo productos activos con stock
+    @GetMapping("/items/catalog")
+    public List<InventoryItemResponse> catalog() {
+        return inventoryService.findAllActive();
     }
 
     @GetMapping("/items/{sku}")
@@ -90,5 +98,21 @@ public class InventoryController {
             @PathVariable String sku,
             @RequestParam @Min(1) int quantity) {
         return inventoryService.dispatch(sku, quantity);
+    }
+
+    // agregar calificacion a un producto (usuarios autenticados)
+    @PostMapping("/items/{sku}/rating")
+    public InventoryItemResponse addRating(
+            @PathVariable String sku,
+            @RequestParam @Min(1) int value) {
+        return inventoryService.addRating(sku, value);
+    }
+
+    // activar o desactivar producto (admin/warehouse)
+    @PatchMapping("/items/{sku}/status")
+    public InventoryItemResponse setStatus(
+            @PathVariable String sku,
+            @RequestParam boolean active) {
+        return inventoryService.setActive(sku, active);
     }
 }
