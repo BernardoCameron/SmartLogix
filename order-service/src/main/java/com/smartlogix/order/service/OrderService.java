@@ -13,7 +13,7 @@ import com.smartlogix.order.dto.OrderResponse;
 import com.smartlogix.order.exception.OrderNotFoundException;
 import com.smartlogix.order.repository.PurchaseOrderRepository;
 import java.math.BigDecimal;
-import java.util.ArrayList;
+import java.math.RoundingMode;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,13 +24,16 @@ public class OrderService {
 
     private final PurchaseOrderRepository repository;
     private final RabbitTemplate rabbitTemplate;
+    private final CouponService couponService;
 
     public OrderService(
             PurchaseOrderRepository repository,
-            RabbitTemplate rabbitTemplate
+            RabbitTemplate rabbitTemplate,
+            CouponService couponService
     ) {
         this.repository = repository;
         this.rabbitTemplate = rabbitTemplate;
+        this.couponService = couponService;
     }
 
     public OrderResponse createOrder(CreateOrderRequest request) {
@@ -75,21 +78,21 @@ public class OrderService {
     public OrderResponse updateOrderStatus(String orderNumber, OrderStatus status) {
         PurchaseOrder order = repository.findByOrderNumber(orderNumber)
                 .orElseThrow(() -> new OrderNotFoundException("No existe la orden " + orderNumber));
-        
+
         order.setStatus(status);
         repository.save(order);
 
         if (status == OrderStatus.SHIPMENT_REQUESTED) {
             int totalUnits = order.getLines().stream()
-                    .mapToInt(com.smartlogix.order.domain.OrderLine::getQuantity)
+                    .mapToInt(OrderLine::getQuantity)
                     .sum();
-                    
+
             ShipmentRequestedEvent event = new ShipmentRequestedEvent(
                     order.getOrderNumber(),
                     order.getShippingAddress(),
                     totalUnits
             );
-            
+
             rabbitTemplate.convertAndSend(
                     com.smartlogix.order.config.RabbitMQConfig.EXCHANGE_NAME,
                     com.smartlogix.order.config.RabbitMQConfig.ROUTING_KEY_SHIPMENT,
@@ -106,7 +109,26 @@ public class OrderService {
         order.setCustomerEmail(request.customerEmail().trim().toLowerCase());
         order.setShippingAddress(request.shippingAddress().trim());
         order.setStatus(OrderStatus.PENDING);
-        order.setTotalAmount(calculateTotal(request.lines()));
+
+        BigDecimal subtotal = calculateSubtotal(request.lines());
+        BigDecimal discountAmount = BigDecimal.ZERO;
+
+        // aplicar cupon si se envio uno
+        if (request.couponCode() != null && !request.couponCode().isBlank()) {
+            try {
+                BigDecimal discountPercent = couponService.validate(request.couponCode());
+                discountAmount = subtotal.multiply(discountPercent)
+                        .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+                order.setCouponCode(request.couponCode().trim().toUpperCase());
+                couponService.registerUsage(request.couponCode());
+            } catch (IllegalArgumentException e) {
+                // si el cupon no es valido, se ignora y no se aplica descuento
+                // el frontend ya valido antes de llegar aqui
+            }
+        }
+
+        order.setDiscountAmount(discountAmount);
+        order.setTotalAmount(subtotal.subtract(discountAmount));
 
         for (OrderLineRequest lineRequest : request.lines()) {
             OrderLine line = new OrderLine();
@@ -119,13 +141,11 @@ public class OrderService {
         return order;
     }
 
-    private BigDecimal calculateTotal(List<OrderLineRequest> lines) {
+    private BigDecimal calculateSubtotal(List<OrderLineRequest> lines) {
         return lines.stream()
                 .map(line -> line.unitPrice().multiply(BigDecimal.valueOf(line.quantity())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
-
-
 
     private OrderResponse toResponse(PurchaseOrder order) {
         List<OrderLineResponse> lines = order.getLines().stream()
@@ -139,8 +159,13 @@ public class OrderService {
 
         return new OrderResponse(
                 order.getOrderNumber(),
+                order.getCustomerName(),
+                order.getCustomerEmail(),
+                order.getShippingAddress(),
                 order.getStatus(),
                 order.getTotalAmount(),
+                order.getCouponCode(),
+                order.getDiscountAmount(),
                 order.getTrackingCode(),
                 order.getRejectionReason(),
                 order.getCreatedAt(),

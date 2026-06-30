@@ -45,6 +45,13 @@ public class PurchaseOrder {
     @Column(nullable = false, precision = 14, scale = 2)
     private BigDecimal totalAmount;
 
+    // cupon aplicado a esta orden
+    @Column(length = 40)
+    private String couponCode;
+
+    @Column(nullable = false, precision = 14, scale = 2)
+    private BigDecimal discountAmount;
+
     @Column(length = 40)
     private String trackingCode;
 
@@ -112,6 +119,12 @@ public class PurchaseOrder {
     public void setTotalAmount(BigDecimal totalAmount) {
         this.totalAmount = totalAmount;
     }
+
+    public String getCouponCode() { return couponCode; }
+    public void setCouponCode(String couponCode) { this.couponCode = couponCode; }
+
+    public BigDecimal getDiscountAmount() { return discountAmount; }
+    public void setDiscountAmount(BigDecimal discountAmount) { this.discountAmount = discountAmount; }
 
     public String getTrackingCode() {
         return trackingCode;

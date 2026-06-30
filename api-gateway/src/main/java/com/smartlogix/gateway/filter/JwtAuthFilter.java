@@ -27,7 +27,8 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
     private static final List<String> PUBLIC_PATHS = List.of(
             "/auth/login",
             "/auth/register",
-            "/actuator"
+            "/actuator",
+            "/api/orders/coupons/validate"
     );
 
     // rutas solo para admin

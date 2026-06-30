@@ -10,6 +10,8 @@ public record CreateOrderRequest(
         @NotBlank String customerName,
         @NotBlank @Email String customerEmail,
         @NotBlank String shippingAddress,
-        @NotEmpty List<@Valid OrderLineRequest> lines
+        @NotEmpty List<@Valid OrderLineRequest> lines,
+        // campo opcional para aplicar un cupon
+        String couponCode
 ) {
 }
