@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { InventoryService } from "@/services/inventory.service";
+import { CartService } from "@/services/cart.service";
 
 type Product = {
   sku: string;
@@ -25,6 +26,19 @@ export default function CatalogPage() {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("Todos");
   const [loading, setLoading] = useState(true);
+  // guarda el sku del ultimo producto agregado para mostrar feedback
+  const [added, setAdded] = useState<string | null>(null);
+
+  const handleAddToCart = (product: Product) => {
+    CartService.addItem({
+      sku: product.sku,
+      productName: product.productName,
+      price: product.price,
+      imageUrl: product.imageUrl,
+    });
+    setAdded(product.sku);
+    setTimeout(() => setAdded(null), 1500);
+  };
 
   useEffect(() => {
     InventoryService.getCatalog()
@@ -145,13 +159,15 @@ export default function CatalogPage() {
                 <Button
                   className="w-full"
                   size="sm"
+                  variant={added === product.sku ? "secondary" : "default"}
                   disabled={product.availableQuantity === 0}
-                  onClick={() => {
-                    // se conectara con el carrito en la siguiente tarea
-                    alert(`Agregando ${product.productName} al carrito (pendiente)`);
-                  }}
+                  onClick={() => handleAddToCart(product)}
                 >
-                  {product.availableQuantity === 0 ? "Sin stock" : "Agregar al carrito"}
+                  {product.availableQuantity === 0
+                    ? "Sin stock"
+                    : added === product.sku
+                    ? "Agregado"
+                    : "Agregar al carrito"}
                 </Button>
               </CardFooter>
             </Card>
