@@ -30,22 +30,22 @@ export default function Login() {
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+    <main className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-slate-800">SmartLogix</h1>
-          <p className="text-slate-500 text-sm mt-1">Ingresa para continuar</p>
+          <h1 className="text-2xl font-bold text-foreground">SmartLogix</h1>
+          <p className="text-muted-foreground text-sm mt-1">Ingresa para continuar</p>
         </div>
 
-        <Card className="shadow-sm border border-slate-200">
+        <Card>
           <CardHeader className="pb-4">
-            <CardTitle className="text-lg text-slate-800">Iniciar sesion</CardTitle>
+            <CardTitle className="text-lg">Iniciar sesion</CardTitle>
             <CardDescription>Ingresa tus credenciales de acceso</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
-              <div className="space-y-1">
-                <Label htmlFor="username" className="text-slate-700">Usuario</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="username">Usuario</Label>
                 <Input
                   id="username"
                   value={username}
@@ -54,8 +54,8 @@ export default function Login() {
                   required
                 />
               </div>
-              <div className="space-y-1">
-                <Label htmlFor="password" className="text-slate-700">Contrasena</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="password">Contrasena</Label>
                 <Input
                   id="password"
                   type="password"
@@ -67,7 +67,7 @@ export default function Login() {
               </div>
 
               {error && (
-                <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+                <p className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md px-3 py-2">
                   {error}
                 </p>
               )}
@@ -77,8 +77,8 @@ export default function Login() {
               </Button>
             </form>
 
-            <div className="mt-4 text-center">
-              <Link href="/register" className="text-sm text-slate-500 hover:text-slate-800 transition-colors">
+            <div className="mt-4 text-center border-t pt-4">
+              <Link href="/register" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                 No tienes cuenta? Registrate aqui
               </Link>
             </div>
