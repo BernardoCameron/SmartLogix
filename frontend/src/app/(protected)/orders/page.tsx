@@ -8,10 +8,13 @@ import { buttonVariants } from "@/components/ui/button"
 import Link from "next/link"
 import { OrdersService } from "@/services/orders.service"
 
+import { AuthService } from "@/services/auth.service"
+
 type OrderSummary = {
   orderNumber: string
   status: string
   totalAmount: number
+  customerEmail?: string
   trackingCode: string | null
   createdAt: string
 }
@@ -42,18 +45,26 @@ export default function OrdersPage() {
   useEffect(() => {
     OrdersService.getAllOrders()
       .then((data) => {
-        // Sobrescribir montos con descuentos locales si existen
+        let list = data || [];
+        
+        // 1. Filtrar por el email del cliente si no es Admin/Warehouse
+        const isAdminOrWarehouse = AuthService.isAdminOrWarehouse();
+        if (!isAdminOrWarehouse) {
+          const userEmail = AuthService.getUsername()?.toLowerCase();
+          list = list.filter((o: any) => o.customerEmail?.toLowerCase() === userEmail);
+        }
+
+        // 2. Sobrescribir montos con descuentos locales si existen
         const localDiscountsRaw = localStorage.getItem("smartlogix_order_discounts");
-        if (localDiscountsRaw && data) {
+        if (localDiscountsRaw) {
           const localDiscounts = JSON.parse(localDiscountsRaw);
-          const mapped = data.map((o: any) => {
+          list = list.map((o: any) => {
             const saved = localDiscounts[o.orderNumber];
             return saved ? { ...o, totalAmount: saved.totalAmount } : o;
           });
-          setOrders(mapped);
-        } else {
-          setOrders(data);
         }
+        
+        setOrders(list);
       })
       .catch(console.error)
       .finally(() => setLoading(false))

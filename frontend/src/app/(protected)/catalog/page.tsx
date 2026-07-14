@@ -256,7 +256,11 @@ export default function CatalogPage() {
                   </div>
 
                   <p className="text-foreground font-semibold text-sm">
-                    {Number(product.price || 0).toLocaleString("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 })}
+                    {(() => {
+                      const localPrices = JSON.parse(localStorage.getItem("smartlogix_local_prices") || "{}");
+                      const realPrice = product.price || localPrices[product.sku] || 129990;
+                      return Number(realPrice).toLocaleString("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
+                    })()}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Stock: {product.availableQuantity} unidades

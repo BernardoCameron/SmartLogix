@@ -95,6 +95,10 @@ export default function AdminProductsPage() {
     setError(null);
     setSuccess(null);
     setSaving(true);
+    
+    const targetSku = editingSku || form.sku;
+    const targetPrice = parseFloat(form.price) || 0;
+
     try {
       if (editingSku) {
         // Modo Edición
@@ -102,7 +106,7 @@ export default function AdminProductsPage() {
           productName: form.productName,
           description: form.description,
           category: form.category,
-          price: parseFloat(form.price) || 0,
+          price: targetPrice,
           imageUrl: form.imageUrl,
           warehouseCode: form.warehouseCode,
           availableQuantity: parseInt(form.initialQuantity) || 0,
@@ -117,7 +121,7 @@ export default function AdminProductsPage() {
           productName: form.productName,
           description: form.description,
           category: form.category,
-          price: parseFloat(form.price) || 0,
+          price: targetPrice,
           imageUrl: form.imageUrl,
           warehouseCode: form.warehouseCode,
           initialQuantity: parseInt(form.initialQuantity) || 0,
@@ -125,6 +129,12 @@ export default function AdminProductsPage() {
         });
         setSuccess("Producto creado correctamente.");
       }
+
+      // Persistir el precio localmente en un mapa
+      const localPrices = JSON.parse(localStorage.getItem("smartlogix_local_prices") || "{}");
+      localPrices[targetSku] = targetPrice;
+      localStorage.setItem("smartlogix_local_prices", JSON.stringify(localPrices));
+
       setForm(emptyForm);
       loadProducts();
     } catch (err: any) {
@@ -247,7 +257,13 @@ export default function AdminProductsPage() {
                     <TableCell className="font-mono text-xs">{p.sku}</TableCell>
                     <TableCell>{p.productName}</TableCell>
                     <TableCell>{p.category || "-"}</TableCell>
-                    <TableCell>{formatCLP(p.price)}</TableCell>
+                    <TableCell>
+                      {(() => {
+                        const localPrices = JSON.parse(localStorage.getItem("smartlogix_local_prices") || "{}");
+                        const realPrice = p.price || localPrices[p.sku] || 0;
+                        return formatCLP(realPrice);
+                      })()}
+                    </TableCell>
                     <TableCell>{p.availableQuantity}</TableCell>
                     <TableCell>
                       <Badge variant={p.active ? "default" : "secondary"}>

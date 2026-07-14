@@ -67,11 +67,23 @@ export default function OrderDetailPage() {
   const [submitting, setSubmitting] = useState<string | null>(null)
   const isAdminOrWarehouse = AuthService.isAdminOrWarehouse()
 
+  const [authError, setAuthError] = useState(false)
+
   const fetchOrder = async () => {
     if (!orderNumber) return
     try {
       const data = await OrdersService.getOrderById(orderNumber as string)
       
+      // Validar si el cliente está autorizado a ver este pedido
+      const isAdminOrWarehouse = AuthService.isAdminOrWarehouse();
+      if (!isAdminOrWarehouse) {
+        const userEmail = AuthService.getUsername()?.toLowerCase();
+        if (data.customerEmail?.toLowerCase() !== userEmail) {
+          setAuthError(true);
+          return;
+        }
+      }
+
       // Aplicar descuento local si existe en localStorage
       const localDiscountsRaw = localStorage.getItem("smartlogix_order_discounts");
       if (localDiscountsRaw) {
@@ -112,6 +124,18 @@ export default function OrderDetailPage() {
       setRatedSkus(getRatedSkus())
     } catch (e) { console.error(e) }
     finally { setSubmitting(null) }
+  }
+
+  if (authError) {
+    return (
+      <main className="container mx-auto py-12 px-4 text-center space-y-4">
+        <h1 className="text-xl font-bold text-red-400">Acceso No Autorizado</h1>
+        <p className="text-sm text-zinc-400">No tienes permisos para ver este pedido.</p>
+        <Link href="/orders">
+          <Button variant="outline" size="sm">Volver a mis pedidos</Button>
+        </Link>
+      </main>
+    );
   }
 
   if (!order) {

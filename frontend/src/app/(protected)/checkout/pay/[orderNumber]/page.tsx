@@ -18,6 +18,10 @@ export default function PaymentGatewayPage() {
   const [loadingOrder, setLoadingOrder] = useState(true)
   const [processing, setProcessing] = useState(false)
   const [statusText, setStatusText] = useState("")
+  
+  // Estado para la felicitacion de compra exitosa
+  const [isSuccessPay, setIsSuccessPay] = useState(false)
+  const [purchasedItems, setPurchasedItems] = useState("")
 
   // Campos de la tarjeta (modo prueba)
   const [cardNumber, setCardNumber] = useState("4111 1111 1111 1111")
@@ -40,8 +44,16 @@ export default function PaymentGatewayPage() {
           const savedDiscount = localDiscounts[orderNumber as string];
           if (savedDiscount) {
             amount = savedDiscount.totalAmount;
+            setPurchasedItems(savedDiscount.itemsSummary || "");
           }
         }
+        
+        // Fallback si no hay itemsSummary local, intentamos leer las lineas
+        if (!purchasedItems && orderData.lines) {
+          const summary = orderData.lines.map((l: any) => `${l.quantity}x ${l.sku}`).join(", ");
+          setPurchasedItems(summary);
+        }
+
         setTotal(amount)
       } catch (e) {
         console.error(e)
@@ -63,14 +75,20 @@ export default function PaymentGatewayPage() {
           const targetStatus = simulateApproved ? "APPROVED" : "REJECTED"
           await OrdersService.updateOrderStatus(orderNumber as string, targetStatus)
           
-          setStatusText(simulateApproved ? "¡Pago aprobado con éxito!" : "Transacción rechazada por el banco.")
-          
-          setTimeout(() => {
-            router.push(`/orders/${orderNumber}`)
-          }, 1000)
+          if (simulateApproved) {
+            setStatusText("¡Pago aprobado con éxito!")
+            setTimeout(() => {
+              setIsSuccessPay(true)
+              setProcessing(false)
+            }, 1000)
+          } else {
+            setStatusText("Transacción rechazada por el banco.")
+            setTimeout(() => {
+              router.push(`/orders/${orderNumber}`)
+            }, 1200)
+          }
         } catch (e) {
           console.error(e)
-          // Fallback de redirección de todos modos para no dejar al usuario atascado
           router.push(`/orders/${orderNumber}`)
         }
       }, 1200)
@@ -81,6 +99,42 @@ export default function PaymentGatewayPage() {
     return (
       <main className="container mx-auto py-12 px-4 max-w-md text-center text-muted-foreground">
         Cargando orden de pago...
+      </main>
+    )
+  }
+
+  if (isSuccessPay) {
+    return (
+      <main className="container mx-auto py-12 px-4 max-w-md space-y-6">
+        <Card className="border-green-800 shadow-2xl bg-zinc-900 text-center p-6 space-y-4">
+          <div className="w-16 h-16 bg-green-500/10 border border-green-500/30 rounded-full flex items-center justify-center mx-auto">
+            <span className="text-green-400 text-2xl">✓</span>
+          </div>
+          <div className="space-y-2">
+            <h1 className="text-xl font-bold text-green-400">¡Felicidades por tu compra!</h1>
+            <p className="text-xs text-zinc-400">Tu pago ha sido procesado de forma segura.</p>
+          </div>
+          
+          <div className="bg-zinc-800/40 border border-zinc-800 rounded-lg p-4 text-xs text-left space-y-2">
+            <p className="text-zinc-500 font-semibold uppercase tracking-wider text-[10px]">Detalle de Adquisición</p>
+            <p className="text-zinc-200 text-xs font-medium leading-relaxed">{purchasedItems || "Productos del pedido"}</p>
+            <div className="flex justify-between border-t border-zinc-800 pt-2 mt-2">
+              <span className="text-zinc-400">Orden N°:</span>
+              <span className="font-mono text-zinc-200">{orderNumber}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-zinc-400">Total pagado:</span>
+              <span className="font-bold text-primary">{clp(total)}</span>
+            </div>
+          </div>
+
+          <Button
+            onClick={() => router.push(`/orders/${orderNumber}`)}
+            className="w-full bg-primary text-primary-foreground font-bold text-xs py-2.5 mt-2"
+          >
+            Ver Detalle del Pedido
+          </Button>
+        </Card>
       </main>
     )
   }

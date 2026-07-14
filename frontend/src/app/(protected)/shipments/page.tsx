@@ -6,6 +6,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { ShipmentsService } from "@/services/shipments.service"
 
+import { AuthService } from "@/services/auth.service"
+import { OrdersService } from "@/services/orders.service"
+
 type Shipment = {
   trackingCode: string
   orderNumber: string
@@ -30,15 +33,33 @@ export default function ShipmentsPage() {
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null)
 
   useEffect(() => {
-    ShipmentsService.getAllShipments()
-      .then((data) => {
-        setShipments(data)
-        if (data.length > 0) {
-          setSelectedShipment(data[0])
+    const loadShipments = async () => {
+      try {
+        const isAdminOrWarehouse = AuthService.isAdminOrWarehouse();
+        let allShipments = await ShipmentsService.getAllShipments();
+        
+        if (!isAdminOrWarehouse) {
+          // Obtener los pedidos del cliente logueado
+          const userEmail = AuthService.getUsername()?.toLowerCase();
+          const allOrders = await OrdersService.getAllOrders().catch(() => []);
+          const clientOrders = allOrders.filter((o: any) => o.customerEmail?.toLowerCase() === userEmail);
+          const clientOrderNumbers = new Set(clientOrders.map((o: any) => o.orderNumber));
+          
+          // Filtrar envíos por las órdenes del cliente
+          allShipments = allShipments.filter(s => clientOrderNumbers.has(s.orderNumber));
         }
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false))
+
+        setShipments(allShipments);
+        if (allShipments.length > 0) {
+          setSelectedShipment(allShipments[0]);
+        }
+      } catch (e) {
+        console.error("Error al cargar envíos:", e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadShipments();
   }, [])
 
   return (
@@ -69,8 +90,8 @@ export default function ShipmentsPage() {
                     {shipments.map((s) => (
                       <TableRow
                         key={s.trackingCode}
-                        className={`cursor-pointer hover:bg-zinc-50 transition-colors ${
-                          selectedShipment?.trackingCode === s.trackingCode ? "bg-zinc-50" : ""
+                        className={`cursor-pointer hover:bg-zinc-800/40 transition-colors ${
+                          selectedShipment?.trackingCode === s.trackingCode ? "bg-zinc-800 text-zinc-100" : ""
                         }`}
                         onClick={() => setSelectedShipment(s)}
                       >
