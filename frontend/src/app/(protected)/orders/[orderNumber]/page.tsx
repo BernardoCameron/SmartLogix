@@ -76,9 +76,9 @@ export default function OrderDetailPage() {
       
       // Validar si el cliente está autorizado a ver este pedido
       const isAdminOrWarehouse = AuthService.isAdminOrWarehouse();
-      if (!isAdminOrWarehouse) {
+      if (!isAdminOrWarehouse && data.customerEmail) {
         const userEmail = AuthService.getUsername()?.toLowerCase();
-        if (data.customerEmail?.toLowerCase() !== userEmail) {
+        if (data.customerEmail.toLowerCase() !== userEmail) {
           setAuthError(true);
           return;
         }

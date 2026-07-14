@@ -43,19 +43,7 @@ export default function ClientNavbar() {
             <Link href="/catalog" className={linkClass("/catalog")}>
               Productos
             </Link>
-            <button
-              onClick={() => setIsCartOpen(true)}
-              className={cn(
-                "text-sm font-medium transition-colors hover:text-foreground text-muted-foreground flex items-center gap-1 cursor-pointer"
-              )}
-            >
-              Carrito
-              {cartCount > 0 && (
-                <span className="bg-primary text-primary-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center leading-none font-semibold">
-                  {cartCount > 9 ? "9+" : cartCount}
-                </span>
-              )}
-            </button>
+
             <Link href="/orders" className={linkClass("/orders")}>
               Mis Pedidos
             </Link>
@@ -95,6 +83,19 @@ export default function ClientNavbar() {
         </div>
 
         <div className="flex items-center gap-4">
+          {/* Botón Carrito en la esquina superior derecha */}
+          <button
+            onClick={() => setIsCartOpen(true)}
+            className="text-sm font-semibold hover:text-foreground text-zinc-300 flex items-center gap-1.5 cursor-pointer bg-zinc-800/40 hover:bg-zinc-800 border border-zinc-700/60 rounded-full px-3 py-1.5 transition-all"
+          >
+            <span>🛒</span>
+            {cartCount > 0 && (
+              <span className="bg-primary text-primary-foreground text-[10px] rounded-full w-4.5 h-4.5 flex items-center justify-center leading-none font-bold">
+                {cartCount > 9 ? "9+" : cartCount}
+              </span>
+            )}
+          </button>
+
           {username && (
             <span className="text-xs text-muted-foreground">{username}</span>
           )}
@@ -103,9 +104,9 @@ export default function ClientNavbar() {
               AuthService.logout();
               window.location.href = "/";
             }}
-            className="text-sm text-muted-foreground hover:text-destructive transition-colors"
+            className="text-xs text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
           >
-            Cerrar sesion
+            Cerrar sesión
           </button>
         </div>
       </div>

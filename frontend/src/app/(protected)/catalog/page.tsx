@@ -229,30 +229,16 @@ export default function CatalogPage() {
                     </p>
                   )}
 
-                  {/* estrellas promedio + boton calificar */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1">
-                      <StarRating
-                        value={Math.round(product.averageRating)}
-                        readonly
-                        size="sm"
-                      />
-                      <span className="text-xs text-muted-foreground">
-                        ({product.ratingCount})
-                      </span>
-                    </div>
-                    {myRating ? (
-                      <span className="text-xs text-muted-foreground">
-                        Tu nota: {myRating}
-                      </span>
-                    ) : (
-                      <button
-                        onClick={() => openRating(product)}
-                        className="text-xs text-muted-foreground hover:text-foreground underline transition-colors"
-                      >
-                        Calificar
-                      </button>
-                    )}
+                  {/* estrellas promedio */}
+                  <div className="flex items-center gap-1">
+                    <StarRating
+                      value={Math.round(product.averageRating)}
+                      readonly
+                      size="sm"
+                    />
+                    <span className="text-xs text-muted-foreground">
+                      ({product.ratingCount})
+                    </span>
                   </div>
 
                   <p className="text-foreground font-semibold text-sm">
