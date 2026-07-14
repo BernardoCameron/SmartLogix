@@ -7,16 +7,14 @@ import java.util.List;
 
 public record OrderResponse(
         String orderNumber,
-        String customerName,
-        String customerEmail,
-        String shippingAddress,
         OrderStatus status,
         BigDecimal totalAmount,
-        String couponCode,
-        BigDecimal discountAmount,
         String trackingCode,
         String reason,
         OffsetDateTime createdAt,
-        List<OrderLineResponse> lines
+        List<OrderLineResponse> lines,
+        String customerName,
+        String customerEmail,
+        String shippingAddress
 ) {
 }

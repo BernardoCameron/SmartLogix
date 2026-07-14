@@ -159,17 +159,15 @@ public class OrderService {
 
         return new OrderResponse(
                 order.getOrderNumber(),
-                order.getCustomerName(),
-                order.getCustomerEmail(),
-                order.getShippingAddress(),
                 order.getStatus(),
                 order.getTotalAmount(),
-                order.getCouponCode(),
-                order.getDiscountAmount(),
                 order.getTrackingCode(),
                 order.getRejectionReason(),
                 order.getCreatedAt(),
-                lines
+                lines,
+                order.getCustomerName(),
+                order.getCustomerEmail(),
+                order.getShippingAddress()
         );
     }
 }
