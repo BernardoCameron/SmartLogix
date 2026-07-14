@@ -70,9 +70,14 @@ export default function ClientNavbar() {
 
           {/* solo admin */}
           {isAdmin && (
-            <Link href="/admin/dashboard" className={linkClass("/admin/dashboard")}>
-              Dashboard
-            </Link>
+            <>
+              <Link href="/admin/coupons" className={linkClass("/admin/coupons")}>
+                Cupones
+              </Link>
+              <Link href="/admin/dashboard" className={linkClass("/admin/dashboard")}>
+                Dashboard
+              </Link>
+            </>
           )}
           {/* warehouse ve su propio dashboard de productos */}
           {!isAdmin && AuthService.isWarehouse() && (
