@@ -41,7 +41,20 @@ export default function OrdersPage() {
 
   useEffect(() => {
     OrdersService.getAllOrders()
-      .then(setOrders)
+      .then((data) => {
+        // Sobrescribir montos con descuentos locales si existen
+        const localDiscountsRaw = localStorage.getItem("smartlogix_order_discounts");
+        if (localDiscountsRaw && data) {
+          const localDiscounts = JSON.parse(localDiscountsRaw);
+          const mapped = data.map((o: any) => {
+            const saved = localDiscounts[o.orderNumber];
+            return saved ? { ...o, totalAmount: saved.totalAmount } : o;
+          });
+          setOrders(mapped);
+        } else {
+          setOrders(data);
+        }
+      })
       .catch(console.error)
       .finally(() => setLoading(false))
   }, [])

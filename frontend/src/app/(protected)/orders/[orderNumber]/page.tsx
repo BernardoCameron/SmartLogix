@@ -71,6 +71,19 @@ export default function OrderDetailPage() {
     if (!orderNumber) return
     try {
       const data = await OrdersService.getOrderById(orderNumber as string)
+      
+      // Aplicar descuento local si existe en localStorage
+      const localDiscountsRaw = localStorage.getItem("smartlogix_order_discounts");
+      if (localDiscountsRaw) {
+        const localDiscounts = JSON.parse(localDiscountsRaw);
+        const savedDiscount = localDiscounts[orderNumber as string];
+        if (savedDiscount) {
+          data.couponCode = savedDiscount.couponCode;
+          data.discountAmount = savedDiscount.discountAmount;
+          data.totalAmount = savedDiscount.totalAmount;
+        }
+      }
+      
       setOrder(data)
     } catch (err) {
       console.error(err)
