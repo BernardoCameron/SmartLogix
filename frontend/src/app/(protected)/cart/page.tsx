@@ -254,6 +254,24 @@ export default function CartPage() {
                   />
                 </div>
 
+                {/* Mapa interactivo de vista previa de la direccion */}
+                {shippingAddress.trim().length > 5 && (
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Ubicacion en mapa (Preview)</Label>
+                    <div className="rounded-md overflow-hidden border border-zinc-200 shadow-sm h-40 bg-zinc-100">
+                      <iframe
+                        width="100%"
+                        height="100%"
+                        frameBorder="0"
+                        scrolling="no"
+                        marginHeight={0}
+                        marginWidth={0}
+                        src={`https://maps.google.com/maps?q=${encodeURIComponent(shippingAddress)}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
+                      />
+                    </div>
+                  </div>
+                )}
+
                 {error && (
                   <p className="text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded-md px-3 py-2">
                     {error}

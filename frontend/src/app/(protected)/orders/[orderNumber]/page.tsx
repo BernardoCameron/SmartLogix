@@ -138,9 +138,20 @@ export default function OrderDetailPage() {
             <p className="text-muted-foreground text-xs mb-1">Email</p>
             <p>{order.customerEmail}</p>
           </div>
-          <div className="col-span-2">
+          <div className="col-span-2 space-y-2">
             <p className="text-muted-foreground text-xs mb-1">Direccion de envio</p>
-            <p>{order.shippingAddress}</p>
+            <p className="font-medium">{order.shippingAddress}</p>
+            <div className="rounded-md overflow-hidden border border-zinc-200 shadow-sm h-48 bg-zinc-100 mt-2">
+              <iframe
+                width="100%"
+                height="100%"
+                frameBorder="0"
+                scrolling="no"
+                marginHeight={0}
+                marginWidth={0}
+                src={`https://maps.google.com/maps?q=${encodeURIComponent(order.shippingAddress)}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
+              />
+            </div>
           </div>
           {order.trackingCode && (
             <div>
