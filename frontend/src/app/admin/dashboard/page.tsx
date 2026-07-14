@@ -40,19 +40,32 @@ export default function AdminDashboard() {
   const [tab, setTab] = useState<"ventas" | "productos">("ventas")
 
   useEffect(() => {
-    Promise.all([
-      OrdersService.getAllOrders(),
-      InventoryService.getAllItems(),
-      ShipmentsService.getAllShipments(),
-    ])
-      .then(([o, p, s]) => {
-        setOrders(o)
-        setProducts(p)
-        setShipments(s)
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false))
-  }, [])
+    setLoading(true);
+    const loadDashboardData = async () => {
+      try {
+        const o = await OrdersService.getAllOrders().catch((err) => {
+          console.warn("Fallo al obtener ordenes en el dashboard:", err);
+          return [];
+        });
+        const p = await InventoryService.getAllItems().catch((err) => {
+          console.warn("Fallo al obtener productos en el dashboard:", err);
+          return [];
+        });
+        const s = await ShipmentsService.getAllShipments().catch((err) => {
+          console.warn("Fallo al obtener despachos en el dashboard:", err);
+          return [];
+        });
+        setOrders(o || []);
+        setProducts(p || []);
+        setShipments(s || []);
+      } catch (e) {
+        console.error("Error al cargar datos de control del dashboard:", e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadDashboardData();
+  }, []);
 
   if (loading) {
     return (
