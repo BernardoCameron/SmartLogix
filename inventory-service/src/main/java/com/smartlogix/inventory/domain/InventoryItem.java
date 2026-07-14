@@ -25,18 +25,6 @@ public class InventoryItem {
     @Column(nullable = false, length = 120)
     private String productName;
 
-    @Column(length = 500)
-    private String description;
-
-    @Column(length = 80)
-    private String category;
-
-    @Column(nullable = false, precision = 10, scale = 2)
-    private BigDecimal price;
-
-    @Column(length = 255)
-    private String imageUrl;
-
     @Column(nullable = false, length = 40)
     private String warehouseCode;
 
@@ -49,24 +37,37 @@ public class InventoryItem {
     @Column(nullable = false)
     private int reorderLevel;
 
-    // promedio de calificaciones del producto
     @Column(nullable = false)
-    private double averageRating;
+    private OffsetDateTime updatedAt;
 
-    // cuantas calificaciones tiene
-    @Column(nullable = false)
-    private int ratingCount;
+    // campos e-commerce
+    @Column(precision = 14, scale = 2)
+    private BigDecimal price;
+
+    @Column(length = 60)
+    private String category;
+
+    @Column(length = 500)
+    private String description;
+
+    @Column(length = 500)
+    private String imageUrl;
 
     @Column(nullable = false)
     private boolean active;
 
+    // promedio calculado al agregar calificaciones
+    @Column(nullable = false, precision = 4, scale = 2)
+    private BigDecimal averageRating;
+
     @Column(nullable = false)
-    private OffsetDateTime updatedAt;
+    private int ratingCount;
 
     @PrePersist
     @PreUpdate
     public void updateTimestamp() {
         this.updatedAt = OffsetDateTime.now();
+        if (this.averageRating == null) this.averageRating = BigDecimal.ZERO;
     }
 
     public Long getId() { return id; }
@@ -76,18 +77,6 @@ public class InventoryItem {
 
     public String getProductName() { return productName; }
     public void setProductName(String productName) { this.productName = productName; }
-
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
-
-    public String getCategory() { return category; }
-    public void setCategory(String category) { this.category = category; }
-
-    public BigDecimal getPrice() { return price; }
-    public void setPrice(BigDecimal price) { this.price = price; }
-
-    public String getImageUrl() { return imageUrl; }
-    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
 
     public String getWarehouseCode() { return warehouseCode; }
     public void setWarehouseCode(String warehouseCode) { this.warehouseCode = warehouseCode; }
@@ -101,14 +90,26 @@ public class InventoryItem {
     public int getReorderLevel() { return reorderLevel; }
     public void setReorderLevel(int reorderLevel) { this.reorderLevel = reorderLevel; }
 
-    public double getAverageRating() { return averageRating; }
-    public void setAverageRating(double averageRating) { this.averageRating = averageRating; }
+    public OffsetDateTime getUpdatedAt() { return updatedAt; }
 
-    public int getRatingCount() { return ratingCount; }
-    public void setRatingCount(int ratingCount) { this.ratingCount = ratingCount; }
+    public BigDecimal getPrice() { return price; }
+    public void setPrice(BigDecimal price) { this.price = price; }
+
+    public String getCategory() { return category; }
+    public void setCategory(String category) { this.category = category; }
+
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
+
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
 
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
 
-    public OffsetDateTime getUpdatedAt() { return updatedAt; }
+    public BigDecimal getAverageRating() { return averageRating != null ? averageRating : BigDecimal.ZERO; }
+    public void setAverageRating(BigDecimal averageRating) { this.averageRating = averageRating; }
+
+    public int getRatingCount() { return ratingCount; }
+    public void setRatingCount(int ratingCount) { this.ratingCount = ratingCount; }
 }

@@ -5,8 +5,10 @@ import com.smartlogix.inventory.dto.InventoryAvailabilityResponse;
 import com.smartlogix.inventory.dto.InventoryItemResponse;
 import com.smartlogix.inventory.service.InventoryService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import java.util.List;
+import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -15,6 +17,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -28,22 +31,22 @@ public class InventoryController {
         this.inventoryService = inventoryService;
     }
 
-    // crear producto (admin/warehouse)
-    @PostMapping("/items")
-    public InventoryItemResponse create(@Valid @RequestBody CreateInventoryItemRequest request) {
-        return inventoryService.createItem(request);
+    // catalogo publico: solo productos activos
+    @GetMapping("/items/catalog")
+    public List<InventoryItemResponse> getCatalog() {
+        return inventoryService.findActiveCatalog();
     }
 
-    // listar todos (admin/warehouse ven todo, incluyendo inactivos)
+    // listado completo para admin/warehouse
     @GetMapping("/items")
     public List<InventoryItemResponse> list() {
         return inventoryService.findAll();
     }
 
-    // catalogo publico: solo productos activos con stock
-    @GetMapping("/items/catalog")
-    public List<InventoryItemResponse> catalog() {
-        return inventoryService.findAllActive();
+    @PostMapping("/items")
+    @ResponseStatus(HttpStatus.CREATED)
+    public InventoryItemResponse create(@Valid @RequestBody CreateInventoryItemRequest request) {
+        return inventoryService.createItem(request);
     }
 
     @GetMapping("/items/{sku}")
@@ -58,61 +61,53 @@ public class InventoryController {
         return inventoryService.checkAvailability(sku, quantity);
     }
 
+    // activar o desactivar producto (admin/warehouse)
+    @PatchMapping("/items/{sku}/status")
+    public InventoryItemResponse setStatus(@PathVariable String sku, @RequestParam boolean active) {
+        return inventoryService.setActive(sku, active);
+    }
+
+    // agregar calificacion (usuario autenticado)
+    @PostMapping("/items/{sku}/rating")
+    public InventoryItemResponse addRating(
+            @PathVariable String sku,
+            @RequestParam @Min(1) @Max(5) int value) {
+        return inventoryService.addRating(sku, value);
+    }
+
     @PatchMapping("/items/{sku}/reserve")
     public InventoryItemResponse reserve(
-            @PathVariable String sku,
-            @RequestParam @Min(1) int quantity) {
+            @PathVariable String sku, @RequestParam @Min(1) int quantity) {
         return inventoryService.reserve(sku, quantity);
     }
 
     @PostMapping("/items/{sku}/reserve")
     public InventoryItemResponse reservePost(
-            @PathVariable String sku,
-            @RequestParam @Min(1) int quantity) {
+            @PathVariable String sku, @RequestParam @Min(1) int quantity) {
         return inventoryService.reserve(sku, quantity);
     }
 
     @PatchMapping("/items/{sku}/release")
     public InventoryItemResponse release(
-            @PathVariable String sku,
-            @RequestParam @Min(1) int quantity) {
+            @PathVariable String sku, @RequestParam @Min(1) int quantity) {
         return inventoryService.release(sku, quantity);
     }
 
     @PostMapping("/items/{sku}/release")
     public InventoryItemResponse releasePost(
-            @PathVariable String sku,
-            @RequestParam @Min(1) int quantity) {
+            @PathVariable String sku, @RequestParam @Min(1) int quantity) {
         return inventoryService.release(sku, quantity);
     }
 
     @PatchMapping("/items/{sku}/dispatch")
     public InventoryItemResponse dispatch(
-            @PathVariable String sku,
-            @RequestParam @Min(1) int quantity) {
+            @PathVariable String sku, @RequestParam @Min(1) int quantity) {
         return inventoryService.dispatch(sku, quantity);
     }
 
     @PostMapping("/items/{sku}/dispatch")
     public InventoryItemResponse dispatchPost(
-            @PathVariable String sku,
-            @RequestParam @Min(1) int quantity) {
+            @PathVariable String sku, @RequestParam @Min(1) int quantity) {
         return inventoryService.dispatch(sku, quantity);
-    }
-
-    // agregar calificacion a un producto (usuarios autenticados)
-    @PostMapping("/items/{sku}/rating")
-    public InventoryItemResponse addRating(
-            @PathVariable String sku,
-            @RequestParam @Min(1) int value) {
-        return inventoryService.addRating(sku, value);
-    }
-
-    // activar o desactivar producto (admin/warehouse)
-    @PatchMapping("/items/{sku}/status")
-    public InventoryItemResponse setStatus(
-            @PathVariable String sku,
-            @RequestParam boolean active) {
-        return inventoryService.setActive(sku, active);
     }
 }

@@ -28,7 +28,8 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             "/auth/login",
             "/auth/register",
             "/actuator",
-            "/api/orders/coupons/validate"
+            "/api/orders/coupons/validate",
+            "/api/inventory/items/catalog"
     );
 
     // rutas solo para admin
