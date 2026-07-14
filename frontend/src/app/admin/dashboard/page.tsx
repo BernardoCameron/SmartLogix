@@ -29,6 +29,9 @@ type Product = {
   active: boolean
 }
 
+const formatCLP = (n: number) =>
+  n.toLocaleString("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
+
 export default function AdminDashboard() {
   const [orders, setOrders] = useState<Order[]>([])
   const [products, setProducts] = useState<Product[]>([])
@@ -135,7 +138,7 @@ export default function AdminDashboard() {
         <div className="space-y-6">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[
-              { label: "Total ingresos", value: `$${totalVentas.toFixed(2)}` },
+              { label: "Total ingresos", value: formatCLP(totalVentas) },
               { label: "Total ordenes", value: orders.length },
               { label: "Pendientes", value: ordenesPorEstado.PENDING },
               { label: "Rechazadas", value: ordenesPorEstado.REJECTED },
@@ -168,7 +171,7 @@ export default function AdminDashboard() {
                         </div>
                         <div className="text-right">
                           <p className="text-sm font-semibold">{data.qty} uds</p>
-                          <p className="text-xs text-muted-foreground">${data.revenue.toFixed(2)}</p>
+                          <p className="text-xs text-muted-foreground">{formatCLP(data.revenue)}</p>
                         </div>
                       </div>
                     ))}
@@ -191,7 +194,7 @@ export default function AdminDashboard() {
                       <div key={name} className="flex justify-between items-center py-2 border-b last:border-0">
                         <p className="text-sm font-medium">{name}</p>
                         <div className="text-right">
-                          <p className="text-sm font-semibold">${data.total.toFixed(2)}</p>
+                          <p className="text-sm font-semibold">{formatCLP(data.total)}</p>
                           <p className="text-xs text-muted-foreground">{data.qty} ordenes</p>
                         </div>
                       </div>
@@ -216,7 +219,7 @@ export default function AdminDashboard() {
                       </div>
                       <div className="text-right flex items-center gap-3">
                         <Badge variant="secondary">{o.status}</Badge>
-                        <p className="text-sm font-semibold">${o.totalAmount.toFixed(2)}</p>
+                        <p className="text-sm font-semibold">{formatCLP(o.totalAmount)}</p>
                       </div>
                     </div>
                   ))}
