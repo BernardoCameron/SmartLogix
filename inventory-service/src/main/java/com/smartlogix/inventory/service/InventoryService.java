@@ -46,6 +46,20 @@ public class InventoryService {
         return toResponse(repository.save(item));
     }
 
+    public InventoryItemResponse updateItem(String sku, com.smartlogix.inventory.dto.UpdateInventoryItemRequest request) {
+        InventoryItem item = loadBySku(sku);
+        item.setProductName(request.productName().trim());
+        item.setDescription(request.description());
+        item.setCategory(request.category());
+        item.setPrice(request.price());
+        item.setImageUrl(request.imageUrl());
+        item.setWarehouseCode(request.warehouseCode().trim().toUpperCase());
+        item.setAvailableQuantity(request.availableQuantity());
+        item.setReorderLevel(request.reorderLevel());
+
+        return toResponse(repository.save(item));
+    }
+
     @Transactional(readOnly = true)
     public List<InventoryItemResponse> findAll() {
         return repository.findAll().stream()

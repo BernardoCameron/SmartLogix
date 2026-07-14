@@ -49,6 +49,13 @@ public class InventoryController {
         return inventoryService.createItem(request);
     }
 
+    @org.springframework.web.bind.annotation.PutMapping("/items/{sku}")
+    public InventoryItemResponse update(
+            @PathVariable String sku,
+            @Valid @RequestBody com.smartlogix.inventory.dto.UpdateInventoryItemRequest request) {
+        return inventoryService.updateItem(sku, request);
+    }
+
     @GetMapping("/items/{sku}")
     public InventoryItemResponse findBySku(@PathVariable String sku) {
         return inventoryService.findBySku(sku);
