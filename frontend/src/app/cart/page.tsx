@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CartService, CartItem } from "@/services/cart.service";
 import { OrdersService } from "@/services/orders.service";
+import { OrdersAPI } from "@/api/orders.api";
 
 export default function CartPage() {
   const [items, setItems] = useState<CartItem[]>([]);
@@ -15,37 +16,31 @@ export default function CartPage() {
   const [customerEmail, setCustomerEmail] = useState("");
   const [shippingAddress, setShippingAddress] = useState("");
   const [couponCode, setCouponCode] = useState("");
-  const [discount, setDiscount] = useState(0);
-  const [placing, setPlacing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
+  const [couponApplied, setCouponApplied] = useState<string | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
 
-  useEffect(() => {
-    setItems(CartService.getCart());
-  }, []);
-
-  const refresh = () => setItems(CartService.getCart());
-
-  const handleQuantity = (sku: string, qty: number) => {
-    CartService.updateQuantity(sku, qty);
-    refresh();
-  };
-
-  const handleRemove = (sku: string) => {
-    CartService.removeItem(sku);
-    refresh();
-  };
-
-  // cupon simple: SMARTLOGIX10 da 10%
-  const applyCoupon = () => {
-    if (couponCode.trim().toUpperCase() === "SMARTLOGIX10") {
-      setDiscount(0.1);
-    } else {
+  const applyCoupon = async () => {
+    if (!couponCode.trim()) return;
+    setCouponError(null);
+    setValidatingCoupon(true);
+    try {
+      const result = await OrdersAPI.validateCoupon(couponCode.trim());
+      if (result.valid) {
+        setDiscount(Number(result.discountPercent) / 100);
+        setCouponApplied(result.code);
+      } else {
+        setDiscount(0);
+        setCouponApplied(null);
+        setCouponError(result.message ?? "Cupon no valido.");
+      }
+    } catch {
       setDiscount(0);
-      setError("Cupon no valido.");
-      return;
+      setCouponApplied(null);
+      setCouponError("Error al validar el cupon.");
+    } finally {
+      setValidatingCoupon(false);
     }
-    setError(null);
   };
 
   const subtotal = CartService.getTotal();
@@ -62,6 +57,7 @@ export default function CartPage() {
         customerName,
         customerEmail,
         shippingAddress,
+        couponCode: couponApplied ?? undefined,
         lines: items.map((i) => ({
           sku: i.sku,
           quantity: i.quantity,
@@ -160,22 +156,38 @@ export default function CartPage() {
             <CardHeader className="pb-3">
               <CardTitle className="text-sm">Cupon de descuento</CardTitle>
             </CardHeader>
-            <CardContent className="flex gap-2">
-              <Input
-                placeholder="Codigo"
-                value={couponCode}
-                onChange={(e) => setCouponCode(e.target.value)}
-                className="text-sm"
-              />
-              <Button variant="outline" size="sm" onClick={applyCoupon}>
-                Aplicar
-              </Button>
+            <CardContent className="space-y-2">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Codigo"
+                  value={couponCode}
+                  onChange={(e) => {
+                    setCouponCode(e.target.value);
+                    setCouponApplied(null);
+                    setCouponError(null);
+                    setDiscount(0);
+                  }}
+                  className="text-sm"
+                  disabled={!!couponApplied}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={applyCoupon}
+                  disabled={validatingCoupon || !!couponApplied || !couponCode.trim()}
+                >
+                  {validatingCoupon ? "..." : couponApplied ? "Aplicado" : "Aplicar"}
+                </Button>
+              </div>
+              {couponApplied && (
+                <p className="text-xs text-green-700">
+                  Cupon <strong>{couponApplied}</strong> aplicado — {(discount * 100).toFixed(0)}% de descuento.
+                </p>
+              )}
+              {couponError && (
+                <p className="text-xs text-destructive">{couponError}</p>
+              )}
             </CardContent>
-            {discount > 0 && (
-              <CardFooter className="pt-0">
-                <p className="text-xs text-green-700">Descuento del {discount * 100}% aplicado.</p>
-              </CardFooter>
-            )}
           </Card>
 
           {/* totales y formulario de envio */}
