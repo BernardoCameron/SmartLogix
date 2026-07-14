@@ -27,4 +27,10 @@ export const InventoryAPI = {
       method: 'POST',
     });
   },
+  updateItem: async (sku: string, data: any) => {
+    return apiClient<any>(`/api/inventory/items/${sku}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
 };

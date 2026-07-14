@@ -43,6 +43,9 @@ export default function AdminProductsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  
+  // Estado para edición
+  const [editingSku, setEditingSku] = useState<string | null>(null);
 
   const loadProducts = async () => {
     try {
@@ -63,28 +66,69 @@ export default function AdminProductsPage() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleCreate = async (e: React.FormEvent) => {
+  const handleEditClick = (product: Product) => {
+    setEditingSku(product.sku);
+    setError(null);
+    setSuccess(null);
+    setForm({
+      sku: product.sku,
+      productName: product.productName,
+      description: product.description || "",
+      category: product.category || "",
+      price: product.price ? product.price.toString() : "",
+      imageUrl: product.imageUrl || "",
+      warehouseCode: product.warehouseCode,
+      initialQuantity: product.availableQuantity.toString(),
+      reorderLevel: product.reorderLevel.toString(),
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingSku(null);
+    setForm(emptyForm);
+    setError(null);
+    setSuccess(null);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
     setSaving(true);
     try {
-      await InventoryService.createItem({
-        sku: form.sku,
-        productName: form.productName,
-        description: form.description,
-        category: form.category,
-        price: parseFloat(form.price),
-        imageUrl: form.imageUrl,
-        warehouseCode: form.warehouseCode,
-        initialQuantity: parseInt(form.initialQuantity),
-        reorderLevel: parseInt(form.reorderLevel),
-      });
-      setSuccess("Producto creado correctamente.");
+      if (editingSku) {
+        // Modo Edición
+        await InventoryService.updateItem(editingSku, {
+          productName: form.productName,
+          description: form.description,
+          category: form.category,
+          price: parseFloat(form.price) || 0,
+          imageUrl: form.imageUrl,
+          warehouseCode: form.warehouseCode,
+          availableQuantity: parseInt(form.initialQuantity) || 0,
+          reorderLevel: parseInt(form.reorderLevel) || 0,
+        });
+        setSuccess("Producto actualizado correctamente.");
+        setEditingSku(null);
+      } else {
+        // Modo Creación
+        await InventoryService.createItem({
+          sku: form.sku,
+          productName: form.productName,
+          description: form.description,
+          category: form.category,
+          price: parseFloat(form.price) || 0,
+          imageUrl: form.imageUrl,
+          warehouseCode: form.warehouseCode,
+          initialQuantity: parseInt(form.initialQuantity) || 0,
+          reorderLevel: parseInt(form.reorderLevel) || 0,
+        });
+        setSuccess("Producto creado correctamente.");
+      }
       setForm(emptyForm);
       loadProducts();
     } catch (err: any) {
-      setError(err.message ?? "Error al crear el producto.");
+      setError(err.message ?? "Error al procesar el producto.");
     } finally {
       setSaving(false);
     }
@@ -99,27 +143,34 @@ export default function AdminProductsPage() {
     }
   };
 
+  const formatCLP = (val: any) => {
+    const num = Number(val || 0);
+    return num.toLocaleString("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
+  };
+
   return (
     <main className="container mx-auto py-8 px-4 space-y-6">
       <h1 className="text-2xl font-semibold text-foreground">Gestion de Productos</h1>
 
-      {/* formulario de creacion */}
+      {/* formulario de creacion / edicion */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Agregar nuevo producto</CardTitle>
+          <CardTitle className="text-base">
+            {editingSku ? `Editar producto (SKU: ${editingSku})` : "Agregar nuevo producto"}
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleCreate} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
-              { name: "sku", label: "SKU" },
+              { name: "sku", label: "SKU", disabled: !!editingSku },
               { name: "productName", label: "Nombre" },
               { name: "category", label: "Categoria" },
               { name: "price", label: "Precio", type: "number" },
               { name: "warehouseCode", label: "Codigo bodega" },
-              { name: "initialQuantity", label: "Stock inicial", type: "number" },
+              { name: "initialQuantity", label: editingSku ? "Stock disponible" : "Stock inicial", type: "number" },
               { name: "reorderLevel", label: "Nivel de reorden", type: "number" },
               { name: "imageUrl", label: "URL imagen" },
-            ].map(({ name, label, type }) => (
+            ].map(({ name, label, type, disabled }) => (
               <div key={name} className="space-y-1">
                 <Label htmlFor={name}>{label}</Label>
                 <Input
@@ -128,7 +179,8 @@ export default function AdminProductsPage() {
                   type={type ?? "text"}
                   value={(form as any)[name]}
                   onChange={handleChange}
-                  required={name !== "imageUrl"}
+                  required={name !== "imageUrl" && name !== "description"}
+                  disabled={disabled}
                 />
               </div>
             ))}
@@ -154,10 +206,15 @@ export default function AdminProductsPage() {
               </p>
             )}
 
-            <div className="sm:col-span-2">
+            <div className="sm:col-span-2 flex gap-2">
               <Button type="submit" disabled={saving}>
-                {saving ? "Guardando..." : "Crear producto"}
+                {saving ? "Guardando..." : editingSku ? "Guardar cambios" : "Crear producto"}
               </Button>
+              {editingSku && (
+                <Button type="button" variant="outline" onClick={handleCancelEdit}>
+                  Cancelar
+                </Button>
+              )}
             </div>
           </form>
         </CardContent>
@@ -190,17 +247,24 @@ export default function AdminProductsPage() {
                     <TableCell className="font-mono text-xs">{p.sku}</TableCell>
                     <TableCell>{p.productName}</TableCell>
                     <TableCell>{p.category || "-"}</TableCell>
-                    <TableCell>{Number(p.price).toLocaleString("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 })}</TableCell>
+                    <TableCell>{formatCLP(p.price)}</TableCell>
                     <TableCell>{p.availableQuantity}</TableCell>
                     <TableCell>
                       <Badge variant={p.active ? "default" : "secondary"}>
                         {p.active ? "Activo" : "Inactivo"}
                       </Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="space-x-2">
                       <Button
                         size="sm"
                         variant="outline"
+                        onClick={() => handleEditClick(p)}
+                      >
+                        Editar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={p.active ? "destructive" : "secondary"}
                         onClick={() => toggleStatus(p.sku, p.active)}
                       >
                         {p.active ? "Desactivar" : "Activar"}

@@ -12,13 +12,14 @@ import { InventoryService } from "@/services/inventory.service";
 interface InventoryItem {
   sku: string;
   productName: string;
+  price?: number;
   availableQuantity: number;
 }
 
 export default function CreateOrder() {
-  const [customerName, setCustomerName] = useState("John Doe");
-  const [customerEmail, setCustomerEmail] = useState("john@example.com");
-  const [shippingAddress, setShippingAddress] = useState("123 Main St");
+  const [customerName, setCustomerName] = useState("Juan Perez");
+  const [customerEmail, setCustomerEmail] = useState("juanperez@correo.cl");
+  const [shippingAddress, setShippingAddress] = useState("Av. Siempreviva 123, Santiago");
   const [selectedSku, setSelectedSku] = useState("");
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [result, setResult] = useState<any>(null);
@@ -41,6 +42,9 @@ export default function CreateOrder() {
     setResult(null);
     setError(null);
     
+    const selectedItem = inventoryItems.find(i => i.sku === selectedSku);
+    const itemPrice = selectedItem && selectedItem.price ? Number(selectedItem.price) : 129990;
+
     const payload = {
       customerName,
       customerEmail,
@@ -49,7 +53,7 @@ export default function CreateOrder() {
         {
           sku: selectedSku,
           quantity: 1, // fijo en 1 por ahora
-          unitPrice: 15.50
+          unitPrice: itemPrice
         }
       ]
     };
@@ -58,8 +62,13 @@ export default function CreateOrder() {
       const data = await OrdersService.createOrder(payload);
       setResult(data);
     } catch (err: any) {
-      setError(`Network error: ${err.message}`);
+      setError(`Error de red: ${err.message}`);
     }
+  };
+
+  const formatCLP = (val: any) => {
+    const num = Number(val || 0);
+    return num.toLocaleString("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
   };
 
   return (
@@ -80,6 +89,7 @@ export default function CreateOrder() {
                 <tr className="border-b">
                   <th className="py-2">SKU</th>
                   <th className="py-2">Producto</th>
+                  <th className="py-2 text-right">Precio</th>
                   <th className="py-2 text-right">Stock Disponible</th>
                 </tr>
               </thead>
@@ -88,6 +98,7 @@ export default function CreateOrder() {
                   <tr key={item.sku} className="border-b">
                     <td className="py-2 font-mono">{item.sku}</td>
                     <td className="py-2">{item.productName}</td>
+                    <td className="py-2 text-right">{formatCLP(item.price ?? 129990)}</td>
                     <td className="py-2 text-right">{item.availableQuantity}</td>
                   </tr>
                 ))}
@@ -99,7 +110,7 @@ export default function CreateOrder() {
 
       <Card className="w-full max-w-2xl shadow-sm border border-gray-200">
         <CardHeader>
-          <CardTitle className="text-xl">Crear Pedido v1</CardTitle>
+          <CardTitle className="text-xl">Crear Pedido Rápido</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleCreateOrder} className="space-y-4">
@@ -124,11 +135,11 @@ export default function CreateOrder() {
                 id="skuSelect"
                 value={selectedSku} 
                 onChange={(e) => setSelectedSku(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded text-sm"
+                className="w-full p-2 border border-gray-300 rounded text-sm bg-white"
               >
                 {inventoryItems.map(item => (
                   <option key={item.sku} value={item.sku}>
-                    {item.productName} ({item.sku}) - {item.availableQuantity} disp.
+                    {item.productName} ({item.sku}) - {formatCLP(item.price ?? 129990)} - {item.availableQuantity} disp.
                   </option>
                 ))}
               </select>

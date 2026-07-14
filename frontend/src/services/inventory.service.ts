@@ -20,4 +20,7 @@ export const InventoryService = {
   addRating: async (sku: string, value: number) => {
     return InventoryAPI.addRating(sku, value);
   },
+  updateItem: async (sku: string, data: any) => {
+    return InventoryAPI.updateItem(sku, data);
+  },
 };
