@@ -22,8 +22,33 @@ public class DataInitializer implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        if (repository.count() > 0) {
-            log.info("Inventario ya tiene datos, omitiendo inicializacion.");
+        // 1. Corregir y activar productos antiguos ya existentes en la base de datos
+        List<InventoryItem> existentes = repository.findAll();
+        if (!existentes.isEmpty()) {
+            log.info("Corrigiendo y activando productos preexistentes en la base de datos...");
+            for (InventoryItem item : existentes) {
+                boolean modificado = false;
+                if (!item.isActive()) {
+                    item.setActive(true);
+                    modificado = true;
+                }
+                if (item.getPrice() == null) {
+                    item.setPrice(new BigDecimal("129990"));
+                    modificado = true;
+                }
+                if (item.getCategory() == null || item.getCategory().isBlank()) {
+                    item.setCategory("Hardware");
+                    modificado = true;
+                }
+                if (item.getImageUrl() == null || item.getImageUrl().isBlank()) {
+                    item.setImageUrl("https://images.unsplash.com/photo-1591488320449-011701bb6704?w=400&q=80");
+                    modificado = true;
+                }
+                if (modificado) {
+                    repository.save(item);
+                }
+            }
+            log.info("Correccion de productos preexistentes completada.");
             return;
         }
         log.info("Inicializando productos de hardware de ejemplo...");
