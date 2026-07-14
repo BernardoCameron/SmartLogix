@@ -27,11 +27,14 @@ function saveRating(sku: string, value: number) {
   localStorage.setItem(RATED_KEY, JSON.stringify(current))
 }
 
+const clp = (n: number) =>
+  n.toLocaleString("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
+
 type OrderLine = {
   sku: string
   quantity: number
   unitPrice: number
-  subtotal: number
+  lineAmount: number
 }
 
 type Order = {
@@ -41,6 +44,8 @@ type Order = {
   shippingAddress: string
   status: string
   totalAmount: number
+  couponCode: string | null
+  discountAmount: number | null
   trackingCode: string | null
   createdAt: string
   lines: OrderLine[]
@@ -62,10 +67,6 @@ export default function OrderDetailPage() {
   const [submitting, setSubmitting] = useState<string | null>(null)
   const isAdminOrWarehouse = AuthService.isAdminOrWarehouse()
 
-  useEffect(() => {
-    setRatedSkus(getRatedSkus())
-  }, [])
-
   const fetchOrder = async () => {
     if (!orderNumber) return
     try {
@@ -77,6 +78,7 @@ export default function OrderDetailPage() {
   }
 
   useEffect(() => {
+    setRatedSkus(getRatedSkus())
     fetchOrder()
   }, [orderNumber])
 
@@ -84,9 +86,7 @@ export default function OrderDetailPage() {
     try {
       await OrdersService.updateOrderStatus(orderNumber as string, status)
       fetchOrder()
-    } catch (err) {
-      console.error(err)
-    }
+    } catch (err) { console.error(err) }
   }
 
   const handleRating = async (sku: string) => {
@@ -97,11 +97,8 @@ export default function OrderDetailPage() {
       await InventoryService.addRating(sku, value)
       saveRating(sku, value)
       setRatedSkus(getRatedSkus())
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setSubmitting(null)
-    }
+    } catch (e) { console.error(e) }
+    finally { setSubmitting(null) }
   }
 
   if (!order) {
@@ -125,13 +122,13 @@ export default function OrderDetailPage() {
         <CardContent className="grid grid-cols-2 gap-4 text-sm">
           <div>
             <p className="text-muted-foreground text-xs mb-1">Estado</p>
-            <Badge variant={order.status === "APPROVED" ? "default" : "secondary"}>
+            <Badge variant={order.status === "APPROVED" ? "default" : order.status === "REJECTED" ? "destructive" : "secondary"}>
               {STATUS_LABEL[order.status] ?? order.status}
             </Badge>
           </div>
           <div>
             <p className="text-muted-foreground text-xs mb-1">Fecha</p>
-            <p>{new Date(order.createdAt).toLocaleString()}</p>
+            <p>{new Date(order.createdAt).toLocaleString("es-CL")}</p>
           </div>
           <div>
             <p className="text-muted-foreground text-xs mb-1">Cliente</p>
@@ -141,24 +138,30 @@ export default function OrderDetailPage() {
             <p className="text-muted-foreground text-xs mb-1">Email</p>
             <p>{order.customerEmail}</p>
           </div>
-          <div>
-            <p className="text-muted-foreground text-xs mb-1">Direccion</p>
+          <div className="col-span-2">
+            <p className="text-muted-foreground text-xs mb-1">Direccion de envio</p>
             <p>{order.shippingAddress}</p>
           </div>
           {order.trackingCode && (
             <div>
-              <p className="text-muted-foreground text-xs mb-1">Tracking</p>
+              <p className="text-muted-foreground text-xs mb-1">Codigo de seguimiento</p>
               <p className="font-mono text-xs">{order.trackingCode}</p>
+            </div>
+          )}
+          {order.couponCode && (
+            <div>
+              <p className="text-muted-foreground text-xs mb-1">Cupon aplicado</p>
+              <p className="font-mono text-xs">{order.couponCode} (-{clp(order.discountAmount ?? 0)})</p>
             </div>
           )}
           <div>
             <p className="text-muted-foreground text-xs mb-1">Total</p>
-            <p className="font-semibold">${order.totalAmount.toFixed(2)}</p>
+            <p className="font-semibold text-base">{clp(order.totalAmount)}</p>
           </div>
         </CardContent>
       </Card>
 
-      {/* acciones de operacion solo para admin/warehouse */}
+      {/* acciones: SOLO admin y bodega */}
       {isAdminOrWarehouse && (
         <Card>
           <CardHeader className="pb-3">
@@ -205,19 +208,19 @@ export default function OrderDetailPage() {
                 <TableRow key={idx}>
                   <TableCell className="font-mono text-xs">{line.sku}</TableCell>
                   <TableCell>{line.quantity}</TableCell>
-                  <TableCell>${line.unitPrice.toFixed(2)}</TableCell>
-                  <TableCell className="text-right">${line.subtotal.toFixed(2)}</TableCell>
+                  <TableCell>{clp(line.unitPrice)}</TableCell>
+                  <TableCell className="text-right">{clp(line.lineAmount)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
           <div className="flex justify-end mt-3 border-t pt-3">
-            <p className="text-sm font-semibold">Total: ${order.totalAmount.toFixed(2)}</p>
+            <p className="text-sm font-semibold">Total: {clp(order.totalAmount)}</p>
           </div>
         </CardContent>
       </Card>
 
-      {/* calificar productos: solo cuando el pedido ya fue enviado */}
+      {/* calificar productos: solo cuando el pedido esta en despacho */}
       {order.status === "SHIPMENT_REQUESTED" && (
         <Card>
           <CardHeader className="pb-3">
@@ -244,8 +247,7 @@ export default function OrderDetailPage() {
                         }
                       />
                       <Button
-                        size="sm"
-                        variant="outline"
+                        size="sm" variant="outline"
                         disabled={!lineRatings[line.sku] || submitting === line.sku}
                         onClick={() => handleRating(line.sku)}
                       >

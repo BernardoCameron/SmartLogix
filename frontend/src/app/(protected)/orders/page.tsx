@@ -4,11 +4,11 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { buttonVariants } from "@/components/ui/button"
 import Link from "next/link"
-import { Button, buttonVariants } from "@/components/ui/button"
 import { OrdersService } from "@/services/orders.service"
 
-type OrderResponse = {
+type OrderSummary = {
   orderNumber: string
   status: string
   totalAmount: number
@@ -16,88 +16,99 @@ type OrderResponse = {
   createdAt: string
 }
 
-export default function OrdersPage() {
-  const [orders, setOrders] = useState<OrderResponse[]>([])
+const STATUS_LABEL: Record<string, string> = {
+  PENDING: "Pendiente",
+  APPROVED: "Aprobado",
+  REJECTED: "Rechazado",
+  SHIPMENT_REQUESTED: "En despacho",
+  FAILED: "Fallido",
+}
 
-  const fetchOrders = async () => {
-    try {
-      const data = await OrdersService.getAllOrders()
-      setOrders(data)
-    } catch (err) {
-      console.error(err)
-    }
-  }
+const STATUS_VARIANT: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
+  PENDING: "secondary",
+  APPROVED: "default",
+  REJECTED: "destructive",
+  SHIPMENT_REQUESTED: "outline",
+  FAILED: "destructive",
+}
+
+const clp = (n: number) =>
+  n.toLocaleString("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
+
+export default function OrdersPage() {
+  const [orders, setOrders] = useState<OrderSummary[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchOrders()
+    OrdersService.getAllOrders()
+      .then(setOrders)
+      .catch(console.error)
+      .finally(() => setLoading(false))
   }, [])
 
-  const handleUpdateStatus = async (orderNumber: string, status: string) => {
-    try {
-      await OrdersService.updateOrderStatus(orderNumber, status)
-      fetchOrders()
-    } catch (err) {
-      console.error("Error al actualizar", err)
-    }
-  }
-
   return (
-    <main className="container mx-auto py-10 px-4">
+    <main className="container mx-auto py-8 px-4">
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold text-foreground">Mis Pedidos</h1>
+        <p className="text-muted-foreground text-sm mt-1">
+          Aqui puedes ver el estado de todos tus pedidos.
+        </p>
+      </div>
+
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Mis Pedidos</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>N° Pedido</TableHead>
-                <TableHead>Fecha</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead>Tracking</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {orders.map((order) => (
-                <TableRow key={order.orderNumber}>
-                  <TableCell className="font-medium">{order.orderNumber}</TableCell>
-                  <TableCell>{new Date(order.createdAt).toLocaleDateString()}</TableCell>
-                  <TableCell>${order.totalAmount.toFixed(2)}</TableCell>
-                  <TableCell>
-                    <Badge variant={order.status === 'PENDING' ? 'secondary' : order.status === 'APPROVED' ? 'default' : 'outline'}>
-                      {order.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{order.trackingCode || "-"}</TableCell>
-                  <TableCell className="text-right space-x-2">
-                    {order.status === "PENDING" && (
-                      <Button onClick={() => handleUpdateStatus(order.orderNumber, "APPROVED")} variant="default" size="sm">
-                        Marcar Listo
-                      </Button>
-                    )}
-                    {order.status === "APPROVED" && (
-                      <Button onClick={() => handleUpdateStatus(order.orderNumber, "SHIPMENT_REQUESTED")} variant="destructive" size="sm">
-                        Enviar
-                      </Button>
-                    )}
-                    {order.status === "SHIPMENT_REQUESTED" && (
-                      <span className="text-xs text-green-600 font-medium mr-2 bg-green-50 px-2 py-1 rounded">En proceso</span>
-                    )}
-                    <Link href={`/orders/${order.orderNumber}`} className={buttonVariants({ variant: "outline", size: "sm" })}>
-                      Detalle
-                    </Link>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {orders.length === 0 && (
+        <CardContent className="pt-4">
+          {loading ? (
+            <p className="text-muted-foreground text-sm py-4">Cargando...</p>
+          ) : (
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center">No hay pedidos registrados.</TableCell>
+                  <TableHead>N° Pedido</TableHead>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Tracking</TableHead>
+                  <TableHead className="text-right">Detalle</TableHead>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {orders.map((order) => (
+                  <TableRow key={order.orderNumber}>
+                    <TableCell className="font-mono text-xs">{order.orderNumber}</TableCell>
+                    <TableCell className="text-sm">
+                      {new Date(order.createdAt).toLocaleDateString("es-CL")}
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      {clp(order.totalAmount)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={STATUS_VARIANT[order.status] ?? "secondary"}>
+                        {STATUS_LABEL[order.status] ?? order.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      {order.trackingCode ?? "-"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Link
+                        href={`/orders/${order.orderNumber}`}
+                        className={buttonVariants({ variant: "outline", size: "sm" })}
+                      >
+                        Ver detalle
+                      </Link>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {orders.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                      Aun no tienes pedidos. Ve al catalogo para comprar.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </main>

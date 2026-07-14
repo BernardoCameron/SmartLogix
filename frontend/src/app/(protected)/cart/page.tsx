@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,15 +10,39 @@ import { CartService, CartItem } from "@/services/cart.service";
 import { OrdersService } from "@/services/orders.service";
 import { OrdersAPI } from "@/api/orders.api";
 
+// formatea en pesos chilenos sin decimales
+const clp = (n: number) =>
+  n.toLocaleString("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
+
 export default function CartPage() {
   const [items, setItems] = useState<CartItem[]>([]);
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [shippingAddress, setShippingAddress] = useState("");
   const [couponCode, setCouponCode] = useState("");
+  const [discount, setDiscount] = useState(0);
   const [couponApplied, setCouponApplied] = useState<string | null>(null);
   const [couponError, setCouponError] = useState<string | null>(null);
   const [validatingCoupon, setValidatingCoupon] = useState(false);
+  const [placing, setPlacing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+
+  useEffect(() => {
+    setItems(CartService.getCart());
+  }, []);
+
+  const refresh = () => setItems(CartService.getCart());
+
+  const handleQuantity = (sku: string, qty: number) => {
+    CartService.updateQuantity(sku, qty);
+    refresh();
+  };
+
+  const handleRemove = (sku: string) => {
+    CartService.removeItem(sku);
+    refresh();
+  };
 
   const applyCoupon = async () => {
     if (!couponCode.trim()) return;
@@ -44,14 +68,14 @@ export default function CartPage() {
   };
 
   const subtotal = CartService.getTotal();
-  const total = subtotal * (1 - discount);
+  const descuentoMonto = subtotal * discount;
+  const total = subtotal - descuentoMonto;
 
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
     if (items.length === 0) return;
     setError(null);
     setPlacing(true);
-
     try {
       const payload = {
         customerName,
@@ -64,12 +88,11 @@ export default function CartPage() {
           unitPrice: i.price,
         })),
       };
-
       const order = await OrdersService.createOrder(payload);
       CartService.clearCart();
       router.push(`/orders/${order.orderNumber}`);
     } catch (err: any) {
-      setError(err.message ?? "No se pudo crear el pedido. Verifica el stock.");
+      setError(err.message ?? "No se pudo crear el pedido.");
     } finally {
       setPlacing(false);
     }
@@ -110,33 +133,23 @@ export default function CartPage() {
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-sm text-foreground truncate">{item.productName}</p>
                   <p className="text-xs text-muted-foreground font-mono">{item.sku}</p>
-                  <p className="text-sm font-semibold mt-1">${Number(item.price).toFixed(2)}</p>
+                  <p className="text-sm font-semibold mt-1">{clp(item.price)}</p>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-7 h-7 p-0"
+                    size="sm" variant="outline" className="w-7 h-7 p-0"
                     onClick={() => handleQuantity(item.sku, item.quantity - 1)}
-                  >
-                    -
-                  </Button>
+                  >-</Button>
                   <span className="w-6 text-center text-sm">{item.quantity}</span>
                   <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-7 h-7 p-0"
+                    size="sm" variant="outline" className="w-7 h-7 p-0"
                     onClick={() => handleQuantity(item.sku, item.quantity + 1)}
-                  >
-                    +
-                  </Button>
+                  >+</Button>
                 </div>
 
-                <div className="text-right w-20">
-                  <p className="text-sm font-semibold">
-                    ${(item.price * item.quantity).toFixed(2)}
-                  </p>
+                <div className="text-right w-24">
+                  <p className="text-sm font-semibold">{clp(item.price * item.quantity)}</p>
                   <button
                     onClick={() => handleRemove(item.sku)}
                     className="text-xs text-muted-foreground hover:text-destructive transition-colors mt-1"
@@ -159,7 +172,7 @@ export default function CartPage() {
             <CardContent className="space-y-2">
               <div className="flex gap-2">
                 <Input
-                  placeholder="Codigo"
+                  placeholder="Ej: VERANO20"
                   value={couponCode}
                   onChange={(e) => {
                     setCouponCode(e.target.value);
@@ -171,9 +184,7 @@ export default function CartPage() {
                   disabled={!!couponApplied}
                 />
                 <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={applyCoupon}
+                  variant="outline" size="sm" onClick={applyCoupon}
                   disabled={validatingCoupon || !!couponApplied || !couponCode.trim()}
                 >
                   {validatingCoupon ? "..." : couponApplied ? "Aplicado" : "Aplicar"}
@@ -181,58 +192,56 @@ export default function CartPage() {
               </div>
               {couponApplied && (
                 <p className="text-xs text-green-700">
-                  Cupon <strong>{couponApplied}</strong> aplicado — {(discount * 100).toFixed(0)}% de descuento.
+                  Cupon <strong>{couponApplied}</strong> — {(discount * 100).toFixed(0)}% de descuento.
                 </p>
               )}
-              {couponError && (
-                <p className="text-xs text-destructive">{couponError}</p>
-              )}
+              {couponError && <p className="text-xs text-destructive">{couponError}</p>}
             </CardContent>
           </Card>
 
-          {/* totales y formulario de envio */}
+          {/* totales + formulario de datos */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Resumen del pedido</CardTitle>
+              <CardTitle className="text-sm">Datos del pedido</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-1 text-sm mb-4">
+              {/* resumen de precios */}
+              <div className="space-y-1 text-sm mb-5 pb-4 border-b">
                 <div className="flex justify-between text-muted-foreground">
                   <span>Subtotal</span>
-                  <span>${subtotal.toFixed(2)}</span>
+                  <span>{clp(subtotal)}</span>
                 </div>
                 {discount > 0 && (
                   <div className="flex justify-between text-green-700">
                     <span>Descuento</span>
-                    <span>-${(subtotal * discount).toFixed(2)}</span>
+                    <span>-{clp(descuentoMonto)}</span>
                   </div>
                 )}
-                <div className="flex justify-between font-semibold border-t pt-2">
+                <div className="flex justify-between font-semibold">
                   <span>Total</span>
-                  <span>${total.toFixed(2)}</span>
+                  <span>{clp(total)}</span>
                 </div>
               </div>
 
+              {/* formulario */}
               <form onSubmit={handleCheckout} className="space-y-3">
                 <div className="space-y-1">
-                  <Label className="text-xs">Nombre</Label>
+                  <Label className="text-xs">Nombre completo</Label>
                   <Input
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
-                    placeholder="Tu nombre completo"
-                    required
-                    className="text-sm"
+                    placeholder="Juan Perez"
+                    required className="text-sm"
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Email</Label>
+                  <Label className="text-xs">Correo electronico</Label>
                   <Input
                     type="email"
                     value={customerEmail}
                     onChange={(e) => setCustomerEmail(e.target.value)}
-                    placeholder="tu@email.com"
-                    required
-                    className="text-sm"
+                    placeholder="juanperez@correo.cl"
+                    required className="text-sm"
                   />
                 </div>
                 <div className="space-y-1">
@@ -240,9 +249,8 @@ export default function CartPage() {
                   <Input
                     value={shippingAddress}
                     onChange={(e) => setShippingAddress(e.target.value)}
-                    placeholder="Calle, numero, ciudad"
-                    required
-                    className="text-sm"
+                    placeholder="Av. Siempreviva 123, Santiago"
+                    required className="text-sm"
                   />
                 </div>
 
@@ -253,7 +261,7 @@ export default function CartPage() {
                 )}
 
                 <Button type="submit" className="w-full" disabled={placing}>
-                  {placing ? "Procesando..." : "Realizar pedido"}
+                  {placing ? "Procesando..." : "Confirmar pedido"}
                 </Button>
               </form>
             </CardContent>

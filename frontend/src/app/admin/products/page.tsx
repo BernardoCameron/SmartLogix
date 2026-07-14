@@ -190,7 +190,7 @@ export default function AdminProductsPage() {
                     <TableCell className="font-mono text-xs">{p.sku}</TableCell>
                     <TableCell>{p.productName}</TableCell>
                     <TableCell>{p.category || "-"}</TableCell>
-                    <TableCell>${Number(p.price).toFixed(2)}</TableCell>
+                    <TableCell>{Number(p.price).toLocaleString("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 })}</TableCell>
                     <TableCell>{p.availableQuantity}</TableCell>
                     <TableCell>
                       <Badge variant={p.active ? "default" : "secondary"}>

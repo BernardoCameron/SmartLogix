@@ -229,7 +229,7 @@ export default function CatalogPage() {
                   </div>
 
                   <p className="text-foreground font-semibold text-sm">
-                    ${Number(product.price).toFixed(2)}
+                    {Number(product.price).toLocaleString("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 })}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Stock: {product.availableQuantity} unidades
