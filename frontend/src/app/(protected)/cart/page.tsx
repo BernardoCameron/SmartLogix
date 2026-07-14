@@ -143,7 +143,7 @@ export default function CartPage() {
       }
 
       CartService.clearCart();
-      router.push(`/orders/${order.orderNumber}`);
+      router.push(`/checkout/pay/${order.orderNumber}`);
     } catch (err: any) {
       setError(err.message ?? "No se pudo crear el pedido.");
     } finally {
