@@ -54,13 +54,40 @@ export default function CatalogPage() {
 
   useEffect(() => {
     setRatedSkus(getRatedSkus());
+    setLoading(true);
+
+    const fetchFallback = () => {
+      InventoryService.getAllItems()
+        .then((data) => {
+          // Asignar datos por defecto a productos antiguos para que se vean bien
+          const repairedData = data.map((p: any) => ({
+            ...p,
+            price: p.price ?? 129990,
+            category: p.category || "Hardware",
+            description: p.description || "Sin descripción disponible.",
+            imageUrl: p.imageUrl || "https://images.unsplash.com/photo-1591488320449-011701bb6704?w=400&q=80"
+          }));
+          setProducts(repairedData);
+          setFiltered(repairedData);
+        })
+        .catch(console.error)
+        .finally(() => setLoading(false));
+    };
+
     InventoryService.getCatalog()
       .then((data) => {
-        setProducts(data);
-        setFiltered(data);
+        if (data && data.length > 0) {
+          setProducts(data);
+          setFiltered(data);
+          setLoading(false);
+        } else {
+          fetchFallback();
+        }
       })
-      .catch(console.error)
-      .finally(() => setLoading(false));
+      .catch((err) => {
+        console.warn("Fallo getCatalog, usando fallback completo:", err);
+        fetchFallback();
+      });
   }, []);
 
   useEffect(() => {
