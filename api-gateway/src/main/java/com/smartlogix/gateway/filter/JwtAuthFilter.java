@@ -110,6 +110,11 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         return Keys.hmacShaKeyFor(bytes);
     }
 
+    private Mono<Void> reject(ServerWebExchange exchange, HttpStatus status) {
+        exchange.getResponse().setStatusCode(status);
+        return exchange.getResponse().setComplete();
+    }
+
     @Override
     public int getOrder() {
         return -1;

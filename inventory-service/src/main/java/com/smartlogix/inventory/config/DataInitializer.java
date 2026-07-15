@@ -105,7 +105,7 @@ public class DataInitializer implements ApplicationRunner {
         item.setReservedQuantity(0);
         item.setReorderLevel(reorder);
         item.setActive(true);
-        item.setAverageRating(BigDecimal.ZERO);
+        item.setAverageRating(0.0);
         item.setRatingCount(0);
         item.setImageUrl(imageUrl);
         return item;
