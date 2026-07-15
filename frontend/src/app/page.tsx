@@ -21,7 +21,7 @@ export default function Login() {
     setLoading(true);
     try {
       await AuthService.login({ username, password });
-      window.location.href = "/orders/new";
+      window.location.href = "/catalog";
     } catch (err: any) {
       setError("Usuario o contrasena incorrectos.");
     } finally {

@@ -10,6 +10,7 @@ import { ShipmentsService } from "@/services/shipments.service"
 type Order = {
   orderNumber: string
   customerName: string
+  customerEmail: string
   totalAmount: number
   status: string
   createdAt: string
@@ -78,7 +79,7 @@ export default function AdminDashboard() {
   // metricas de ventas
   const totalVentas = orders
     .filter((o) => o.status !== "REJECTED" && o.status !== "FAILED")
-    .reduce((sum, o) => sum + o.totalAmount, 0)
+    .reduce((sum, o) => sum + (o.totalAmount || 0), 0)
 
   const ordenesPorEstado = {
     PENDING: orders.filter((o) => o.status === "PENDING").length,
@@ -98,7 +99,7 @@ export default function AdminDashboard() {
           skuCount[line.sku] = { name: prod?.productName ?? line.sku, qty: 0, revenue: 0 }
         }
         skuCount[line.sku].qty += line.quantity
-        skuCount[line.sku].revenue += line.quantity * line.unitPrice
+        skuCount[line.sku].revenue += line.quantity * (line.unitPrice || 0)
       })
     })
 
@@ -106,12 +107,14 @@ export default function AdminDashboard() {
     .sort((a, b) => b[1].qty - a[1].qty)
     .slice(0, 5)
 
-  // clientes con mas compras
-  const clienteCount: Record<string, { qty: number; total: number }> = {}
+  // clientes con mas compras - usar email como clave unica y nombre como display
+  const clienteCount: Record<string, { name: string; qty: number; total: number }> = {}
   orders.forEach((o) => {
-    if (!clienteCount[o.customerName]) clienteCount[o.customerName] = { qty: 0, total: 0 }
-    clienteCount[o.customerName].qty += 1
-    clienteCount[o.customerName].total += o.totalAmount
+    const key = o.customerEmail || o.customerName || "Desconocido"
+    const displayName = o.customerName || o.customerEmail || "Desconocido"
+    if (!clienteCount[key]) clienteCount[key] = { name: displayName, qty: 0, total: 0 }
+    clienteCount[key].qty += 1
+    clienteCount[key].total += (o.totalAmount || 0)
   })
   const topClientes = Object.entries(clienteCount)
     .sort((a, b) => b[1].total - a[1].total)
@@ -203,9 +206,9 @@ export default function AdminDashboard() {
                   <p className="text-sm text-muted-foreground">Sin datos.</p>
                 ) : (
                   <div className="space-y-2">
-                    {topClientes.map(([name, data]) => (
-                      <div key={name} className="flex justify-between items-center py-2 border-b last:border-0">
-                        <p className="text-sm font-medium">{name}</p>
+                    {topClientes.map(([key, data]) => (
+                      <div key={key} className="flex justify-between items-center py-2 border-b last:border-0">
+                        <p className="text-sm font-medium">{data.name}</p>
                         <div className="text-right">
                           <p className="text-sm font-semibold">{formatCLP(data.total)}</p>
                           <p className="text-xs text-muted-foreground">{data.qty} ordenes</p>

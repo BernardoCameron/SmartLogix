@@ -141,8 +141,9 @@ export default function ShipmentsPage() {
                 </div>
 
                 {/* Mapa */}
-                <div className="rounded-md overflow-hidden border border-zinc-200 shadow-sm h-48 bg-zinc-100 mt-2">
+                <div className="rounded-md overflow-hidden border border-zinc-800 shadow-sm h-48 bg-zinc-950 mt-2">
                   <iframe
+                    key={selectedShipment.trackingCode}
                     width="100%"
                     height="100%"
                     frameBorder="0"
@@ -150,7 +151,7 @@ export default function ShipmentsPage() {
                     marginHeight={0}
                     marginWidth={0}
                     src={`https://maps.google.com/maps?q=${encodeURIComponent(
-                      selectedShipment.destinationAddress
+                      selectedShipment.destinationAddress || "Santiago, Chile"
                     )}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
                   />
                 </div>
