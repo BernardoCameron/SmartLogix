@@ -1,9 +1,7 @@
 package com.smartlogix.inventory.dto;
 
-import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 
 public record CreateInventoryItemRequest(
@@ -11,7 +9,7 @@ public record CreateInventoryItemRequest(
         @NotBlank String productName,
         String description,
         String category,
-        @NotNull @DecimalMin("0.0") BigDecimal price,
+        BigDecimal price,
         String imageUrl,
         @NotBlank String warehouseCode,
         @Min(0) int initialQuantity,

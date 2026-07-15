@@ -10,13 +10,13 @@ public record InventoryItemResponse(
         String category,
         BigDecimal price,
         String imageUrl,
+        boolean active,
         String warehouseCode,
         int availableQuantity,
         int reservedQuantity,
         int reorderLevel,
         double averageRating,
         int ratingCount,
-        boolean active,
         OffsetDateTime updatedAt
 ) {
 }

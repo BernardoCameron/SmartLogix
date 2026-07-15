@@ -4,11 +4,11 @@ import com.smartlogix.inventory.domain.InventoryItem;
 import com.smartlogix.inventory.dto.CreateInventoryItemRequest;
 import com.smartlogix.inventory.dto.InventoryAvailabilityResponse;
 import com.smartlogix.inventory.dto.InventoryItemResponse;
+import com.smartlogix.inventory.dto.UpdateInventoryItemRequest;
 import com.smartlogix.inventory.exception.InventoryNotFoundException;
 import com.smartlogix.inventory.exception.InventoryOperationException;
 import com.smartlogix.inventory.repository.InventoryItemRepository;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,30 +31,14 @@ public class InventoryService {
         InventoryItem item = new InventoryItem();
         item.setSku(request.sku().trim().toUpperCase());
         item.setProductName(request.productName().trim());
+        item.setDescription(request.description());
+        item.setCategory(request.category());
+        item.setPrice(request.price() != null ? request.price() : BigDecimal.ZERO);
+        item.setImageUrl(request.imageUrl());
+        item.setActive(true);
         item.setWarehouseCode(request.warehouseCode().trim().toUpperCase());
         item.setAvailableQuantity(request.initialQuantity());
         item.setReservedQuantity(0);
-        item.setReorderLevel(request.reorderLevel());
-        item.setPrice(request.price());
-        item.setCategory(request.category());
-        item.setDescription(request.description());
-        item.setImageUrl(request.imageUrl());
-        item.setActive(true);
-        item.setAverageRating(BigDecimal.ZERO);
-        item.setRatingCount(0);
-
-        return toResponse(repository.save(item));
-    }
-
-    public InventoryItemResponse updateItem(String sku, com.smartlogix.inventory.dto.UpdateInventoryItemRequest request) {
-        InventoryItem item = loadBySku(sku);
-        item.setProductName(request.productName().trim());
-        item.setDescription(request.description());
-        item.setCategory(request.category());
-        item.setPrice(request.price());
-        item.setImageUrl(request.imageUrl());
-        item.setWarehouseCode(request.warehouseCode().trim().toUpperCase());
-        item.setAvailableQuantity(request.availableQuantity());
         item.setReorderLevel(request.reorderLevel());
 
         return toResponse(repository.save(item));
@@ -67,7 +51,6 @@ public class InventoryService {
                 .toList();
     }
 
-    // solo productos activos con stock para el catalogo publico
     @Transactional(readOnly = true)
     public List<InventoryItemResponse> findActiveCatalog() {
         return repository.findAll().stream()
@@ -78,7 +61,8 @@ public class InventoryService {
 
     @Transactional(readOnly = true)
     public InventoryItemResponse findBySku(String sku) {
-        return toResponse(loadBySku(sku));
+        InventoryItem item = loadBySku(sku);
+        return toResponse(item);
     }
 
     @Transactional(readOnly = true)
@@ -93,58 +77,80 @@ public class InventoryService {
         );
     }
 
+    public InventoryItemResponse reserve(String sku, int quantity) {
+        InventoryItem item = loadBySku(sku);
+        if (quantity <= 0) {
+            throw new InventoryOperationException("La cantidad debe ser mayor a 0.");
+        }
+        if (item.getAvailableQuantity() < quantity) {
+            throw new InventoryOperationException(
+                    "Stock insuficiente para SKU " + sku + ". Disponible: " + item.getAvailableQuantity());
+        }
+
+        item.setAvailableQuantity(item.getAvailableQuantity() - quantity);
+        item.setReservedQuantity(item.getReservedQuantity() + quantity);
+
+        return toResponse(repository.save(item));
+    }
+
+    public InventoryItemResponse release(String sku, int quantity) {
+        InventoryItem item = loadBySku(sku);
+        if (quantity <= 0) {
+            throw new InventoryOperationException("La cantidad debe ser mayor a 0.");
+        }
+        if (item.getReservedQuantity() < quantity) {
+            throw new InventoryOperationException(
+                    "No hay suficiente stock reservado para liberar en SKU " + sku);
+        }
+
+        item.setReservedQuantity(item.getReservedQuantity() - quantity);
+        item.setAvailableQuantity(item.getAvailableQuantity() + quantity);
+
+        return toResponse(repository.save(item));
+    }
+
+    public InventoryItemResponse dispatch(String sku, int quantity) {
+        InventoryItem item = loadBySku(sku);
+        if (quantity <= 0) {
+            throw new InventoryOperationException("La cantidad debe ser mayor a 0.");
+        }
+        if (item.getReservedQuantity() < quantity) {
+            throw new InventoryOperationException(
+                    "No hay stock reservado suficiente para despachar SKU " + sku);
+        }
+
+        item.setReservedQuantity(item.getReservedQuantity() - quantity);
+        return toResponse(repository.save(item));
+    }
+
+    public InventoryItemResponse updateItem(String sku, UpdateInventoryItemRequest request) {
+        InventoryItem item = loadBySku(sku);
+        item.setProductName(request.productName().trim());
+        item.setDescription(request.description());
+        item.setCategory(request.category());
+        item.setPrice(request.price() != null ? request.price() : item.getPrice());
+        item.setImageUrl(request.imageUrl());
+        if (request.warehouseCode() != null) {
+            item.setWarehouseCode(request.warehouseCode().trim().toUpperCase());
+        }
+        item.setAvailableQuantity(request.availableQuantity());
+        item.setReorderLevel(request.reorderLevel());
+        return toResponse(repository.save(item));
+    }
+
     public InventoryItemResponse setActive(String sku, boolean active) {
         InventoryItem item = loadBySku(sku);
         item.setActive(active);
         return toResponse(repository.save(item));
     }
 
-    // acumula la calificacion y recalcula el promedio
     public InventoryItemResponse addRating(String sku, int value) {
-        if (value < 1 || value > 5) {
-            throw new InventoryOperationException("La calificacion debe ser entre 1 y 5.");
-        }
         InventoryItem item = loadBySku(sku);
-        BigDecimal totalAcumulado = item.getAverageRating()
-                .multiply(BigDecimal.valueOf(item.getRatingCount()))
-                .add(BigDecimal.valueOf(value));
+        double currentTotal = item.getAverageRating() * item.getRatingCount();
         int newCount = item.getRatingCount() + 1;
-        BigDecimal newAvg = totalAcumulado.divide(BigDecimal.valueOf(newCount), 2, RoundingMode.HALF_UP);
-        item.setAverageRating(newAvg);
+        double newAverage = (currentTotal + value) / newCount;
+        item.setAverageRating(newAverage);
         item.setRatingCount(newCount);
-        return toResponse(repository.save(item));
-    }
-
-    public InventoryItemResponse reserve(String sku, int quantity) {
-        InventoryItem item = loadBySku(sku);
-        if (quantity <= 0) throw new InventoryOperationException("La cantidad debe ser mayor a 0.");
-        if (item.getAvailableQuantity() < quantity) {
-            throw new InventoryOperationException(
-                    "Stock insuficiente para SKU " + sku + ". Disponible: " + item.getAvailableQuantity());
-        }
-        item.setAvailableQuantity(item.getAvailableQuantity() - quantity);
-        item.setReservedQuantity(item.getReservedQuantity() + quantity);
-        return toResponse(repository.save(item));
-    }
-
-    public InventoryItemResponse release(String sku, int quantity) {
-        InventoryItem item = loadBySku(sku);
-        if (quantity <= 0) throw new InventoryOperationException("La cantidad debe ser mayor a 0.");
-        if (item.getReservedQuantity() < quantity) {
-            throw new InventoryOperationException("No hay suficiente stock reservado para liberar en SKU " + sku);
-        }
-        item.setReservedQuantity(item.getReservedQuantity() - quantity);
-        item.setAvailableQuantity(item.getAvailableQuantity() + quantity);
-        return toResponse(repository.save(item));
-    }
-
-    public InventoryItemResponse dispatch(String sku, int quantity) {
-        InventoryItem item = loadBySku(sku);
-        if (quantity <= 0) throw new InventoryOperationException("La cantidad debe ser mayor a 0.");
-        if (item.getReservedQuantity() < quantity) {
-            throw new InventoryOperationException("No hay stock reservado suficiente para despachar SKU " + sku);
-        }
-        item.setReservedQuantity(item.getReservedQuantity() - quantity);
         return toResponse(repository.save(item));
     }
 
@@ -161,13 +167,13 @@ public class InventoryService {
                 item.getCategory(),
                 item.getPrice(),
                 item.getImageUrl(),
+                item.isActive(),
                 item.getWarehouseCode(),
                 item.getAvailableQuantity(),
                 item.getReservedQuantity(),
                 item.getReorderLevel(),
-                item.getAverageRating() != null ? item.getAverageRating().doubleValue() : 0.0,
+                item.getAverageRating(),
                 item.getRatingCount(),
-                item.isActive(),
                 item.getUpdatedAt()
         );
     }
